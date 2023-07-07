@@ -3,9 +3,13 @@ import time
 import traceback
 
 from utils.myLog import _log
+import copy
+
 from utils.bdyUpd import BaiDuWangPan
+from utils.encrypt import EncryptHanlder
 from utils.confLoad import Config,write_config_file
 from utils import gtime
+
 
 def is_need_auth():
     """通过config判断是否需要重新授权"""
@@ -81,13 +85,22 @@ if __name__ == "__main__":
     _log.info(f"[start] start at {gtime.get_time_str()}")
     # 1.鉴权
     bdy = auth_bdy()
-    # 2.开始扫描文件
+    # 2.判断是否需要加密
+    ept = EncryptHanlder()
+    # 3.开始扫描文件
     for path_conf in Config['SYNC_PATH']:
         file_list = get_files_list(path_conf['local']) # 获取本地文件列表
-        print(file_list)
+        _log.info(f"{path_conf['local']} | {file_list}") # 打印文件列表
         i = 0
         for file_path in file_list:
-            fs_id, md5, server_filename, category, path, isdir = bdy.finall_upload_file(file_path,path_conf['remote'])
+            # 将文件加密
+            file_data = ept.encrypt_files(file_path)
+            # print(i,type(file_data))
+            # print(file_data.read(1024*1024*4))
+            fs_id, md5, server_filename, category, path, isdir = bdy.finall_upload_file(
+                                                                            file_path,
+                                                                            path_conf['remote'],
+                                                                            file_data)
             print(i,fs_id, md5, server_filename, category, path, isdir)
             i+=1
     

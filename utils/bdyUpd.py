@@ -92,7 +92,7 @@ class BaiDuWangPan():
         return res_token_json
     
 
-    def precreate(self, file_path:str,remote_base:str):
+    def precreate(self, file_path:str,remote_base:str,file_data = None):
         """预上传 https://pan.baidu.com/union/doc/3ksg0s9r7
         
         说明
@@ -110,19 +110,27 @@ class BaiDuWangPan():
         # 文件大小
         size = os.path.getsize(file_path)
         # 文件块的md5 list
-        file_md5_str = ""
         block_list = []
+        # 文件数据
+        if not file_data: # 没有传入文件数据
+            f = open(file_path, 'rb')
+        else: # 传入了文件数据  
+            f = file_data
         # 分片计算文件的md5
-        with open(file_path, 'rb') as f:
-            while True:
-                data = f.read(1024 * 1024 * 4)
-                if not data:
-                    break
-                block_file_md5 = hashlib.md5(data).hexdigest()
-                block_list.append(block_file_md5)
-
-            file_md5_str = hashlib.md5(f.read()).hexdigest()
-            
+        i = 0
+        while True:
+            data = f.read(1024 * 1024 * 4)
+            if not data:
+                print(i,'break it')
+                break
+            block_file_md5 = hashlib.md5(data).hexdigest()
+            block_list.append(block_file_md5)
+            i+=1
+        # 计算文件md5
+        file_md5_str = hashlib.md5(f.read()).hexdigest()
+        if not file_data: # 没有传入文件数据
+            f.close()  # 关闭文件
+        
         params = {
             'method': 'precreate',
             'access_token': self.access_token,
@@ -176,7 +184,7 @@ class BaiDuWangPan():
         api = self.upload_api + urlencode(params)
         response = requests.post(api, data=data, files=files)
         res_data = json.loads(response.content)
-        _log.debug(f'upd-res {res_data}')
+        _log.info(f'upd-res {res_data}')
         errno = 0
         if 'errno' in res_data:
             errno = res_data['errno']
@@ -251,26 +259,34 @@ class BaiDuWangPan():
             return res_data
 
 
-    def finall_upload_file(self, file_path:str,remote_base_path:str):
+    def finall_upload_file(self, file_path:str,remote_base_path:str,file_data=None):
         """最终上传函数，只需要传入文件路径就行
         - 上传完毕了之后，需要进行create
         - remoete_base_path：上传到远程的文件夹路径
         """
-        uploadid,return_type ,remote_path, size, block_list = self.precreate(file_path,remote_base_path)
+        uploadid,return_type ,remote_path, size, block_list = self.precreate(file_path,remote_base_path,file_data)
         _log.debug(f"upd:{uploadid} return:{return_type} remote:{remote_path} size:{size} block:{block_list}")
         if return_type == 2:
-            return None
-        # _block_list = []  # 这个有问题
-        with open(file_path, 'rb') as f:
-            i = 0
-            while True:
-                data = f.read(1024 * 1024 * 4)
-                if not data:
-                    break
-                md5 = self.upload(remote_path, uploadid, i, data)
-                # _block_list.append(md5)
-                i += 1
+            return None  # 不需要上传
         
+        if not file_data: # 没有传入文件数据
+            f = open(file_path, 'rb')
+        else: # 传入了文件数据  
+            f = file_data
+        # 开始分片上传
+        i = 0
+        while True:
+            data = f.read(1024 * 1024 * 4)
+            print(type(data))
+            if not data:
+                print('break data')
+                break
+            md5 = self.upload(remote_path, uploadid, i, data)
+            print(i,md5)
+            i += 1
+        # 结束，关闭文件
+        f.close()
+        # 汇总文件
         return self.create(remote_path, size, block_list, uploadid)
 
     def download_file(self, fs_id):
