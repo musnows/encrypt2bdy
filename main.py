@@ -65,4 +65,4 @@ def auth_bdy():
 
 if __name__ == "__main__":
     _log.info(f"[start] start at {gtime.get_time_str()}")
-    auth_bdy()
+    #auth_bdy()
