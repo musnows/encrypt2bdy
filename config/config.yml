@@ -1,0 +1,16 @@
+# 程序配置文件，请勿上传至互联网、发送给他人！
+
+# 百度云盘应用配置
+BDY_SECRET_KEY: ""
+BDY_APP_KEY: ""
+BDY_APP_NAME: "e2bdy"
+ENCRYPT_UPLOAD: 1   # 是否加密？是1否0，默认开启加密
+
+# 同步目录配置
+SYNC_INTERVAL: 600  # 监看时间间隔，单位为秒。默认为600s
+SYNC_PATH:
+  - local: '/dir/test/'  # 本地文件路径
+    remote: '/test'      # 远程文件路径
+  # 依照如上格式，继续添加路径
+  # - local: '/dir/test/'
+  #   remote: '/test'

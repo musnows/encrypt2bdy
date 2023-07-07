@@ -3,8 +3,8 @@ import logging
 from datetime import datetime,timezone,timedelta
 from logging.handlers import TimedRotatingFileHandler
 
-LOGGER_NAME = "bdylog"
-LOGGER_FILE = "./log/run.log" # 如果想修改log文件的名字和路径，修改此变量
+LOGGER_NAME = "e2bdylog"
+LOGGER_FILE = "./config/log/run.log" # 如果想修改log文件的名字和路径，修改此变量
 
 def beijing(sec, what):
     """获取北京时间"""
