@@ -3,3 +3,5 @@ test-py/
 __pycache__/
 *.log
 *.db
+# 避免将实际的config上传
+config.yml
