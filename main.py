@@ -12,6 +12,9 @@ from utils.querySql import FilePath,ErrFilePath
 
 DelFileCache = []
 """需要删除的文件路径列表"""
+GB_SIZE = 1024 * 1024 * 1024 
+FILE_SIZE_LIMITED = 10 * GB_SIZE
+"""文件大小限制为10g"""
 
 
 def is_need_auth():
@@ -103,6 +106,12 @@ if __name__ == "__main__":
                 i+=1
                 time.sleep(0.05) # 上传了一个文件后休息一会
                 try:
+                    file_size =  os.path.getsize(file_path) # 文件大小
+                    if file_size >= FILE_SIZE_LIMITED:
+                        _log.warning(f"[{i}] 文件 '{file_path}' 超出10G限制 | 文件大小：{file_size//GB_SIZE}GB")
+                        g+=1
+                        continue
+
                     f = open(file_path,'rb')
                     # 1.计算文件md5，判断文件是否存在于数据中
                     file_name = file_path.partition("/")[-1] # 文件名
