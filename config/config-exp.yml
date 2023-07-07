@@ -19,7 +19,8 @@ ENCRYPT_UPLOAD: 1   # 是否加密？是1 否0，默认开启加密
 SYNC_INTERVAL: 600  # 监看时间间隔，单位为秒。默认为600s
 SYNC_PATH:
   - local: '/dir/test/'  # 本地文件路径
-    remote: '/test'      # 远程文件路径
+    remote: 'test'      # 远程文件路径，不能以./或者/开头，也不能以/结尾
+  
   # 依照如上格式，继续添加路径
-  # - local: '/dir/test/'
-  #   remote: '/test'
+  # - local: '/dir/test2/'
+  #   remote: 'test2'
