@@ -40,7 +40,8 @@ def auth_bdy():
     try:
         if not is_need_auth():
             _log.info("用户token尚未过期，跳过验证阶段")
-            return
+            return BaiDuWangPan(Config['BDY_APP_KEY'],Config['BDY_SECRET_KEY'],Config['BDY_APP_NAME'],
+                                Config['BDY_USER_ACCESS_TOKEN'],Config['BDY_USER_REFRESH_TOKEN'],Config['BDY_USER_TOKEN_OUTDATE'])
         
         bdy = BaiDuWangPan(Config['BDY_APP_KEY'],Config['BDY_SECRET_KEY'],Config['BDY_APP_NAME'])
         res = bdy.get_device_code()
@@ -86,7 +87,7 @@ if __name__ == "__main__":
         print(file_list)
         i = 0
         for file_path in file_list:
-            fs_id, md5, server_filename, category, path, isdir = bdy.finall_upload_file(file_path)
+            fs_id, md5, server_filename, category, path, isdir = bdy.finall_upload_file(file_path,path_conf['remote'])
             print(i,fs_id, md5, server_filename, category, path, isdir)
             i+=1
     

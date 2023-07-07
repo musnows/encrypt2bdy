@@ -5,11 +5,11 @@ from urllib.parse import urlencode
 from .myLog import _log
 
 class BaiDuWangPan():
-    def __init__(self,app_key:str,secret_key:str,app_name:str):
+    def __init__(self,app_key:str,secret_key:str,app_name:str,access_token="",refresh_token="",outdate_time=0):
         """传入token，初始化成员"""
-        self.access_token = ''
-        self.refresh_token = ''
-        self.token_outdate_time = 0  # token过期的时间戳
+        self.access_token = access_token
+        self.refresh_token = refresh_token
+        self.token_outdate_time = outdate_time  # token过期的时间戳
         self.app_name = app_name
         self.app_key = app_key  # Appkey
         self.secret_key = secret_key  # Secretkey
@@ -92,7 +92,7 @@ class BaiDuWangPan():
         return res_token_json
     
 
-    def precreate(self, file_path:str):
+    def precreate(self, file_path:str,remote_base:str):
         """预上传 https://pan.baidu.com/union/doc/3ksg0s9r7
         
         说明
@@ -102,7 +102,7 @@ class BaiDuWangPan():
         - content-md5和slice-md5都不为空时，接口会判断云端是否已存在相同文件，如果存在，返回的return_type=2，代表直接上传成功，无需请求后面的分片上传和创建文件接口。
         - 如果return_type=1，代表需要上传文件
         """
-        remote_path = '/apps/' + self.app_name  # 基础路径
+        remote_path = '/apps/' + self.app_name + '/' + remote_base  # 基础路径
         # 拼接远程路径名
         arr = file_path.split('/')
         for item in arr[1::]:
@@ -251,18 +251,12 @@ class BaiDuWangPan():
             return res_data
 
 
-    def finall_upload_file(self, file_path:str):
+    def finall_upload_file(self, file_path:str,remote_base_path:str):
         """最终上传函数，只需要传入文件路径就行
         - 上传完毕了之后，需要进行create
-        - 预上传如果return_type为2，不需要继续操作
+        - remoete_base_path：上传到远程的文件夹路径
         """
-        # 先判断到底是不是路径
-        if os.path.isdir(file_path):
-            uploadid,return_type ,remote_path, size, block_list = self.precreate(file_path,1)
-        else:
-            # 是文件
-            uploadid,return_type ,remote_path, size, block_list = self.precreate(file_path)
-
+        uploadid,return_type ,remote_path, size, block_list = self.precreate(file_path,remote_base_path)
         _log.debug(f"upd:{uploadid} return:{return_type} remote:{remote_path} size:{size} block:{block_list}")
         if return_type == 2:
             return None
