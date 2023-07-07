@@ -73,8 +73,8 @@ else:
 Config['BDY_SECRET_KEY'] = env_checker('BDY_SECRET_KEY',None,True)
 Config['BDY_APP_KEY'] = env_checker('BDY_APP_KEY',None,True)
 Config['BDY_APP_NAME'] = env_checker('BDY_APP_NAME',"e2bdys")
-Config['SYNC_INTERVAL'] = env_checker('SYNC_INTERVAL',600)
-Config['ENCRYPT_UPLOAD'] = env_checker('ENCRYPT_UPLOAD',1)
+Config['SYNC_INTERVAL'] = int(env_checker('SYNC_INTERVAL',600))
+Config['ENCRYPT_UPLOAD'] = int(env_checker('ENCRYPT_UPLOAD',1))
 
 SYNC_INTERVAL = Config['SYNC_INTERVAL']
 """监看间隔时长s"""

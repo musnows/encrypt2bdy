@@ -98,63 +98,65 @@ if __name__ == "__main__":
         _log.info(f"上传任务开始：{gtime.get_time_str()}")
         i,g,e = 0,0,0
         for path_conf in Config['SYNC_PATH']:
-            file_list = get_files_list(path_conf['local']) # 获取本地文件列表
-            _log.info(f"开始处理路径 '{path_conf['local']}' | 文件数量 {len(file_list)}") # 打印文件列表
-            # 遍历文件列表
-            for file_path in file_list:
-                file_md5_str,e_file_path,file_name = "","",""
-                i+=1
-                time.sleep(0.05) # 上传了一个文件后休息一会
-                try:
-                    file_size =  os.path.getsize(file_path) # 文件大小
-                    if file_size >= FILE_SIZE_LIMITED:
-                        _log.warning(f"[{i}] 文件 '{file_path}' 超出10G限制 | 文件大小：{file_size//GB_SIZE}GB")
-                        g+=1
-                        continue
+            try:
+                file_list = get_files_list(path_conf['local']) # 获取本地文件列表
+                _log.info(f"开始处理路径 '{path_conf['local']}' | 文件数量 {len(file_list)}") # 打印文件列表
+                # 遍历文件列表
+                for file_path in file_list:
+                    file_md5_str,e_file_path,file_name = "","",""
+                    i+=1
+                    time.sleep(0.05) # 上传了一个文件后休息一会
+                    try:
+                        file_size =  os.path.getsize(file_path) # 文件大小
+                        if file_size >= FILE_SIZE_LIMITED:
+                            _log.warning(f"[{i}] 文件 '{file_path}' 超出10G限制 | 文件大小：{file_size//GB_SIZE}GB")
+                            g+=1
+                            continue
 
-                    f = open(file_path,'rb')
-                    # 1.计算文件md5，判断文件是否存在于数据中
-                    file_name = file_path.partition("/")[-1] # 文件名
-                    file_md5_str = hashlib.md5(f.read()).hexdigest()
-                    # 找到了
-                    if FilePath.select().where(FilePath.file_md5 == file_md5_str).first():
-                        _log.debug(f"[{i}] 文件 '{file_path}' 已上传 | 文件哈希：{file_md5_str} | 跳过")
-                        g+=1
-                        continue
-                    # 加密后缀在，不上传（认为是已经处理过的文件）
-                    if ENCRYPT_FILE in file_path:
-                        _log.info(f"[{i}] 文件 '{file_path}' 是已加密文件，认为其已上传 | 文件哈希：{file_md5_str} | 跳过")
-                        g+=1
-                        continue
-                    # 2.加密
-                    # 如果开启了加密，则将文件加密，并将加密后的文件插入缓存
-                    e_file_path = file_path
-                    if Config['ENCRYPT_UPLOAD']:
-                        e_file_path = ept.encrypt_files(file_path,f) 
-                    # 3.上传文件
-                    fs_id, md5, server_filename, category, rpath, isdir = bdy.finall_upload_file(e_file_path,path_conf['remote'])
-                    # 4.入库
-                    cur_file = FilePath(file_path=file_path,file_name=file_name,file_md5=file_md5_str,remote_path=rpath)
-                    cur_file.save()
-                    g+=1
-                    # 5.删除临时文件
-                    os.remove(e_file_path)
-                    _log.info(f"[{i}] 成功上传 '{file_path}' 文件哈希：{md5} 远程路径：{rpath}")
-                except Exception as result:
-                    _log.exception(f"[{i}] 上传失败 '{file_path}'")
-                    e+=1
-                    # 入库
-                    # md5字符串为空说明问题挺严重，可能是文件不存在！
-                    if file_md5_str != "" and file_name !="":
-                        cur_file = ErrFilePath(file_path=file_path,file_name=file_name,file_md5=file_md5_str)
+                        f = open(file_path,'rb')
+                        # 1.计算文件md5，判断文件是否存在于数据中
+                        file_name = file_path.partition("/")[-1] # 文件名
+                        file_md5_str = hashlib.md5(f.read()).hexdigest()
+                        # 找到了
+                        if FilePath.select().where(FilePath.file_md5 == file_md5_str).first():
+                            _log.debug(f"[{i}] 文件 '{file_path}' 已上传 | 文件哈希：{file_md5_str} | 跳过")
+                            g+=1
+                            continue
+                        # 加密后缀在，不上传（认为是已经处理过的文件）
+                        if ENCRYPT_FILE in file_path:
+                            _log.info(f"[{i}] 文件 '{file_path}' 是已加密文件，认为其已上传 | 文件哈希：{file_md5_str} | 跳过")
+                            g+=1
+                            continue
+                        # 2.加密
+                        # 如果开启了加密，则将文件加密，并将加密后的文件插入缓存
+                        e_file_path = file_path
+                        if Config['ENCRYPT_UPLOAD']:
+                            e_file_path = ept.encrypt_files(file_path,f) 
+                        # 3.上传文件
+                        fs_id, md5, server_filename, category, rpath, isdir = bdy.finall_upload_file(e_file_path,path_conf['remote'])
+                        # 4.入库
+                        cur_file = FilePath(file_path=file_path,file_name=file_name,file_md5=file_md5_str,remote_path=rpath)
                         cur_file.save()
-                        _log.info(f"[{i}] 错误记录 '{file_path}' 文件哈希：{file_md5_str}")
-                    else:
-                        _log.error(f"[{i}] '{file_path}' 严重错误，文件哈希为空！")
-                    # 和当前正在处理的文件不同，说明是加密文件
-                    if e_file_path != file_path:
+                        g+=1
+                        # 5.删除临时文件
                         os.remove(e_file_path)
-                    
+                        _log.info(f"[{i}] 成功上传 '{file_path}' 文件哈希：{md5} 远程路径：{rpath}")
+                    except Exception as result:
+                        _log.exception(f"[{i}] 上传失败 '{file_path}'")
+                        e+=1
+                        # 入库
+                        # md5字符串为空说明问题挺严重，可能是文件不存在！
+                        if file_md5_str != "" and file_name !="":
+                            cur_file = ErrFilePath(file_path=file_path,file_name=file_name,file_md5=file_md5_str)
+                            cur_file.save()
+                            _log.info(f"[{i}] 错误记录 '{file_path}' 文件哈希：{file_md5_str}")
+                        else:
+                            _log.error(f"[{i}] '{file_path}' 严重错误，文件哈希为空！")
+                        # 和当前正在处理的文件不同，说明是加密文件
+                        if e_file_path != file_path:
+                            os.remove(e_file_path)
+            except Exception as result:
+                _log.exception(f"err | {path_conf}")
 
         # 都处理完毕了，等待下次处理
         next_run_time = gtime.get_time_str_from_stamp(time.time() + SYNC_INTERVAL)
