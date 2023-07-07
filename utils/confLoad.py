@@ -28,10 +28,9 @@ def write_file(path: str, value):
     with open(path, 'w+', encoding='utf-8') as fw:
         yaml.dump(value, fw)
 
-def write_config_file():
+def write_config_file(value=Config):
     """写入配置文件"""
-    with open(CONF_FILE_PATH, 'w+', encoding='utf-8') as fw:
-        yaml.dump(Config, fw)
+    write_file(CONF_FILE_PATH,value)
 
 
 Config['BDY_SECRET_KEY'] = env_checker('BDY_SECRET_KEY',None,True)
