@@ -1,10 +1,11 @@
 import os
+import io
 from cryptography.fernet import Fernet
 from .myLog import _log
 
 DEFAULT_KEY_PATH = './config/encrypt.key'
 """默认密钥文件路径"""
-ENCRYPT_FILE = '.ept'
+ENCRYPT_FILE = '.e2bdy'
 """加密文件后缀"""
 
 class EncryptHanlder:
@@ -26,12 +27,15 @@ class EncryptHanlder:
         self.fernet = Fernet(key)
 
 
-    def encrypt_files(self,file_path:str):
+    def encrypt_files(self,file_path:str,file_data=None):
         """加密文件，返回加密后的文件路径"""
-        with open(file_path, 'rb') as f:
-            file_content = f.read()
+        file_content = file_data
+        if not isinstance(file_data,io.BufferedReader):
+            with open(file_path, 'rb') as f:
+                file_content = f
+
         # 加密
-        encrypted_content = self.fernet.encrypt(file_content)
+        encrypted_content = self.fernet.encrypt(file_content.read())
         # file_exten = file_path.split(".")[-1]  # 文件后缀
         temp_file_path = file_path + ENCRYPT_FILE
         # 写入临时文件
@@ -42,12 +46,14 @@ class EncryptHanlder:
         return temp_file_path
 
 
-    def decrypt_files(self,file_path:str):
+    def decrypt_files(self,file_path:str,file_data=None):
         """解密,直接写入原文件"""
-        with open(file_path, 'rb') as f:
-            file_content = f.read()
+        file_content = file_data
+        if not isinstance(file_data,io.BufferedReader):
+            with open(file_path, 'rb') as f:
+                file_content = f
         # 解密，直接写入源文件
-        file_content = bytearray(self.fernet.decrypt(file_content))
+        file_content = bytearray(self.fernet.decrypt(file_content.read()))
         file_path = file_path.replace(ENCRYPT_FILE,'') # 删除后缀
         with open(file_path , 'wb') as f:
             f.write(file_content)

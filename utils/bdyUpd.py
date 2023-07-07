@@ -128,7 +128,7 @@ class BaiDuWangPan():
             block_list.append(block_file_md5)
             i+=1
         # 计算文件md5
-        file_md5_str = hashlib.md5(f.read()).hexdigest()
+        # file_md5_str = hashlib.md5(f.read()).hexdigest()
         if not file_data: # 没有传入文件数据
             f.close()  # 关闭文件
         
@@ -185,7 +185,7 @@ class BaiDuWangPan():
         api = self.upload_api + urlencode(params)
         response = requests.post(api, data=data, files=files)
         res_data = json.loads(response.content)
-        _log.info(f'upd-res {res_data}')
+        _log.debug(f'upd-res {res_data}')
         errno = 0
         if 'errno' in res_data:
             errno = res_data['errno']
@@ -220,6 +220,7 @@ class BaiDuWangPan():
         }
         response = requests.post(api, data=data)
         res_data = json.loads(response.content)
+        _log.info(f"文件创建成功！{res_data}")
         errno = res_data.get('errno', 0)
         if errno:
             raise Exception(f"err! {res_data}")

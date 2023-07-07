@@ -1,19 +1,18 @@
 import os
 import time
+import hashlib
 
 from utils.myLog import _log
 
 from utils.bdyUpd import BaiDuWangPan
-from utils.encrypt import EncryptHanlder
+from utils.encrypt import EncryptHanlder,ENCRYPT_FILE
 from utils.confLoad import Config,write_config_file,SYNC_INTERVAL
 from utils import gtime
+from utils.querySql import FilePath,ErrFilePath
 
 DelFileCache = []
 """需要删除的文件路径列表"""
-UpdFileCache = []
-"""上传成功的文件列表"""
-ErrFileCache = []
-"""上传失败的文件列表"""
+
 
 def is_need_auth():
     """通过config判断是否需要重新授权"""
@@ -94,31 +93,62 @@ if __name__ == "__main__":
     # 3.开始扫描文件
     while True:
         _log.info(f"上传任务开始：{gtime.get_time_str()}")
-        i = 0
+        i,g,e = 0,0,0
         for path_conf in Config['SYNC_PATH']:
             file_list = get_files_list(path_conf['local']) # 获取本地文件列表
             _log.info(f"开始处理路径 '{path_conf['local']}' | 文件数量 {len(file_list)}") # 打印文件列表
             # 遍历文件列表
             for file_path in file_list:
+                file_md5_str,e_file_path = "",""
+                i+=1
+                time.sleep(0.05) # 上传了一个文件后休息一会
                 try:
+                    f = open(file_path,'rb')
+                    # 1.计算文件md5，判断文件是否存在于数据中
+                    file_md5_str = hashlib.md5(f.read()).hexdigest()
+                    # 找到了
+                    if FilePath.select().where(FilePath.file_md5 == file_md5_str).first():
+                        _log.debug(f"[{i}] 文件 '{file_path}' 已上传 | 文件哈希：{file_md5_str} | 跳过")
+                        g+=1
+                        continue
+                    # 加密后缀在，不上传（认为是已经处理过的文件）
+                    if ENCRYPT_FILE in file_path:
+                        _log.info(f"[{i}] 文件 '{file_path}' 是已加密文件，认为其已上传 | 文件哈希：{file_md5_str} | 跳过")
+                        g+=1
+                        continue
+                    # 2.加密
                     # 如果开启了加密，则将文件加密，并将加密后的文件插入缓存
                     e_file_path = file_path
                     if Config['ENCRYPT_UPLOAD']:
-                        e_file_path = ept.encrypt_files(file_path) # can't work 
-                        DelFileCache.append(e_file_path) # 插入到删除缓存中
-
-                    fs_id, md5, server_filename, category, path, isdir = bdy.finall_upload_file(e_file_path,path_conf['remote'])
-                    _log.info(f"[{i}] 成功上传 '{file_path}' 文件哈希：{md5} 远程路径：{path}")
-                    i+=1
-                    # 上传了一个文件后休息一会
-                    time.sleep(0.05)
+                        e_file_path = ept.encrypt_files(file_path,f) 
+                    # 3.上传文件
+                    fs_id, md5, server_filename, category, rpath, isdir = bdy.finall_upload_file(e_file_path,path_conf['remote'])
+                    # 4.入库
+                    cur_file = FilePath(file_path=file_path,file_md5=file_md5_str,remote_path=rpath)
+                    cur_file.save()
+                    g+=1
+                    # 5.删除临时文件
+                    os.remove(e_file_path)
+                    _log.info(f"[{i}] 成功上传 '{file_path}' 文件哈希：{md5} 远程路径：{rpath}")
                 except Exception as result:
                     _log.exception(f"[{i}] 上传失败 '{file_path}'")
-                    ErrFileCache.append(file_path)
-                    i+=1
+                    e+=1
+                    # 入库
+                    # md5字符串为空说明问题挺严重，可能是文件不存在！
+                    if file_md5_str != "":
+                        cur_file = ErrFilePath(file_path=file_path,file_md5=file_md5_str)
+                        cur_file.save()
+                        _log.info(f"[{i}] 错误记录 '{file_path}' 文件哈希：{file_md5_str}")
+                    else:
+                        _log.error(f"[{i}] '{file_path}' 严重错误，文件哈希为空！")
+                    # 和当前正在处理的文件不同，说明是加密文件
+                    if e_file_path != file_path:
+                        os.remove(e_file_path)
+                    
 
         # 都处理完毕了，等待下次处理
         next_run_time = gtime.get_time_str_from_stamp(time.time() + SYNC_INTERVAL)
-        _log.info(f"本次上传完毕，下次处理：{gtime.get_time_str_from_stamp(time.time() + SYNC_INTERVAL)} | 开始休眠：{SYNC_INTERVAL}s")
-
+        _log.info(f"本次上传完毕，成功：{g} 错误：{e}，总计：{i}")
+        _log.info(f"本次上传完毕，下次处理：{next_run_time} | 开始休眠：{SYNC_INTERVAL}s")
+        time.sleep(SYNC_INTERVAL)
     

@@ -51,7 +51,6 @@ class ErrFilePath(BaseTable):
     )
     file_md5 = peewee.TextField(
         null=False,
-        unique=True,
         help_text='文件md5'
     )
     insert_time = peewee.TimestampField(null=False,
@@ -62,5 +61,4 @@ class ErrFilePath(BaseTable):
 sqliteDB.create_tables([
     FilePath,ErrFilePath
 ])
-sqliteDB.close()
 _log.info(f"[sqlite3] create all tables")
