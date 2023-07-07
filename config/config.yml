@@ -4,9 +4,18 @@
 BDY_SECRET_KEY: ""
 BDY_APP_KEY: ""
 BDY_APP_NAME: "e2bdy"
-ENCRYPT_UPLOAD: 1   # 是否加密？是1否0，默认开启加密
+
+# 用户token
+# 请一定不要修改下方值
+BDY_USER_ACCESS_TOKEN: ""
+BDY_USER_REFRESH_TOKEN: ""
+BDY_USER_TOKEN_OUTDATE: 0  # 用户token过期时间的时间戳。低于3天就刷新。请不要修改这个值！
+# 请一定不要修改上方值
+
 
 # 同步目录配置
+ENCRYPT_UPLOAD: 1   # 是否加密？是1 否0，默认开启加密
+
 SYNC_INTERVAL: 600  # 监看时间间隔，单位为秒。默认为600s
 SYNC_PATH:
   - local: '/dir/test/'  # 本地文件路径

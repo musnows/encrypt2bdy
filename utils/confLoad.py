@@ -23,6 +23,17 @@ def env_checker(key:str,default,is_critical = False):
             os.abort()
     return temp
 
+def write_file(path: str, value):
+    """写入文件,仅支持yaml格式的dict"""
+    with open(path, 'w+', encoding='utf-8') as fw:
+        yaml.dump(value, fw)
+
+def write_config_file():
+    """写入配置文件"""
+    with open(CONF_FILE_PATH, 'w+', encoding='utf-8') as fw:
+        yaml.dump(Config, fw)
+
+
 Config['BDY_SECRET_KEY'] = env_checker('BDY_SECRET_KEY',None,True)
 Config['BDY_APP_KEY'] = env_checker('BDY_APP_KEY',None,True)
 Config['BDY_APP_NAME'] = env_checker('BDY_APP_KEY',"e2bdys")
