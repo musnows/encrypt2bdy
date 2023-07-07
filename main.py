@@ -21,6 +21,19 @@ def is_need_auth():
             return True
     else:# 不存在键值，直接退出
         return True
+    
+def get_files_list(dir: str):
+    """
+    获取一个目录下所有文件列表，包括子目录
+    :param dir: 目录名
+    :return: 文件list
+    """
+    files_list = []
+    for root, dirs, files in os.walk(dir, topdown=False):
+        for file in files:
+            files_list.append(os.path.join(root, file))
+
+    return files_list
 
 def auth_bdy():
     """先进行百度云验证，需要等待用户输入验证码"""
@@ -58,11 +71,24 @@ def auth_bdy():
         write_config_file(Config)
 
         _log.info(f"获取token操作结束，已写回配置文件")
-
+        return bdy  # 返回对象
     except Exception as result:
         _log.exception('err in auth init')
         os.abort()
 
 if __name__ == "__main__":
     _log.info(f"[start] start at {gtime.get_time_str()}")
-    #auth_bdy()
+    # 1.鉴权
+    bdy = auth_bdy()
+    # 2.开始扫描文件
+    for path_conf in Config['SYNC_PATH']:
+        file_list = get_files_list(path_conf['local']) # 获取本地文件列表
+        print(file_list)
+        i = 0
+        for file_path in file_list:
+            fs_id, md5, server_filename, category, path, isdir = bdy.finall_upload_file(file_path)
+            print(i,fs_id, md5, server_filename, category, path, isdir)
+            i+=1
+    
+    _log.info(f"[exit] exit at {gtime.get_time_str()}")
+    

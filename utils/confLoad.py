@@ -54,5 +54,8 @@ Config['BDY_APP_NAME'] = env_checker('BDY_APP_KEY',"e2bdys")
 Config['SYNC_INTERVAL'] = env_checker('SYNC_INTERVAL',600)
 Config['ENCRYPT_UPLOAD'] = env_checker('ENCRYPT_UPLOAD',1)
 
+SYNC_INTERVAL = Config['SYNC_INTERVAL']
+"""监看间隔时长s"""
+
 # 加载完毕
 _log.info(f"loaded config success")
