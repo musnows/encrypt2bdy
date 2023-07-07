@@ -99,12 +99,13 @@ if __name__ == "__main__":
             _log.info(f"开始处理路径 '{path_conf['local']}' | 文件数量 {len(file_list)}") # 打印文件列表
             # 遍历文件列表
             for file_path in file_list:
-                file_md5_str,e_file_path = "",""
+                file_md5_str,e_file_path,file_name = "","",""
                 i+=1
                 time.sleep(0.05) # 上传了一个文件后休息一会
                 try:
                     f = open(file_path,'rb')
                     # 1.计算文件md5，判断文件是否存在于数据中
+                    file_name = file_path.partition("/")[-1] # 文件名
                     file_md5_str = hashlib.md5(f.read()).hexdigest()
                     # 找到了
                     if FilePath.select().where(FilePath.file_md5 == file_md5_str).first():
@@ -124,7 +125,7 @@ if __name__ == "__main__":
                     # 3.上传文件
                     fs_id, md5, server_filename, category, rpath, isdir = bdy.finall_upload_file(e_file_path,path_conf['remote'])
                     # 4.入库
-                    cur_file = FilePath(file_path=file_path,file_md5=file_md5_str,remote_path=rpath)
+                    cur_file = FilePath(file_path=file_path,file_name=file_name,file_md5=file_md5_str,remote_path=rpath)
                     cur_file.save()
                     g+=1
                     # 5.删除临时文件
@@ -135,8 +136,8 @@ if __name__ == "__main__":
                     e+=1
                     # 入库
                     # md5字符串为空说明问题挺严重，可能是文件不存在！
-                    if file_md5_str != "":
-                        cur_file = ErrFilePath(file_path=file_path,file_md5=file_md5_str)
+                    if file_md5_str != "" and file_name !="":
+                        cur_file = ErrFilePath(file_path=file_path,file_name=file_name,file_md5=file_md5_str)
                         cur_file.save()
                         _log.info(f"[{i}] 错误记录 '{file_path}' 文件哈希：{file_md5_str}")
                     else:

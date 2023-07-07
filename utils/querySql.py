@@ -27,6 +27,10 @@ class FilePath(BaseTable):
         null=False,
         help_text='文件路径'
     )
+    file_name = peewee.TextField(
+        null=False,
+        help_text="文件名"
+    )
     remote_path = peewee.TextField(
         null=False,
         help_text='远程文件路径'
@@ -48,6 +52,10 @@ class ErrFilePath(BaseTable):
     file_path = peewee.TextField(
         null=False,
         help_text='文件路径'
+    )
+    file_name = peewee.TextField(
+        null=False,
+        help_text="文件名"
     )
     file_md5 = peewee.TextField(
         null=False,
