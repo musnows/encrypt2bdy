@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import time
+import copy
 import json, os, hashlib, requests
 from urllib.parse import urlencode
 from .myLog import _log
@@ -121,7 +122,7 @@ class BaiDuWangPan():
         while True:
             data = f.read(1024 * 1024 * 4)
             if not data:
-                print(i,'break it')
+                _log.debug(f"{i} break in prev")
                 break
             block_file_md5 = hashlib.md5(data).hexdigest()
             block_list.append(block_file_md5)
@@ -277,12 +278,10 @@ class BaiDuWangPan():
         i = 0
         while True:
             data = f.read(1024 * 1024 * 4)
-            print(type(data))
             if not data:
-                print('break data')
+                _log.debug(f'{i} break in upload')
                 break
             md5 = self.upload(remote_path, uploadid, i, data)
-            print(i,md5)
             i += 1
         # 结束，关闭文件
         f.close()

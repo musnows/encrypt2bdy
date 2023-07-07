@@ -94,13 +94,11 @@ if __name__ == "__main__":
         i = 0
         for file_path in file_list:
             # 将文件加密
-            file_data = ept.encrypt_files(file_path)
+            e_file_path = ept.encrypt_files(file_path) # can't work 
+            # file_data = open(file_path,'rb')  # work 
             # print(i,type(file_data))
             # print(file_data.read(1024*1024*4))
-            fs_id, md5, server_filename, category, path, isdir = bdy.finall_upload_file(
-                                                                            file_path,
-                                                                            path_conf['remote'],
-                                                                            file_data)
+            fs_id, md5, server_filename, category, path, isdir = bdy.finall_upload_file(e_file_path,path_conf['remote'])
             print(i,fs_id, md5, server_filename, category, path, isdir)
             i+=1
     
