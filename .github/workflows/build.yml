@@ -26,7 +26,7 @@ steps:
     uses: docker/build-push-action@v2
     with:
       context: docker
-      file: docker/Dockerfile
+      file: dockerfile
       build-args: |
         GITHUB_TOKEN=${{ secrets.RELEASE_TOKEN }}
       platforms: |
