@@ -103,13 +103,24 @@ if __name__ == "__main__":
                 _log.info(f"开始处理路径 '{path_conf['local']}' | 文件数量 {len(file_list)}") # 打印文件列表
                 # 遍历文件列表
                 for file_path in file_list:
-                    file_md5_str,e_file_path,file_name = "","",""
+                    file_md5_str,ept_file_path,file_name = "","",""
                     i+=1
                     time.sleep(0.05) # 上传了一个文件后休息一会
                     try:
+                        # 判断文件是否存在（可能有权限问题）
+                        if not os.path.exists(file_path):
+                            _log.warning(f"[{i}] 文件 '{file_path}' 不存在或无权限访问")
+                            e+=1
+                            continue
+                        # 获取文件大小
                         file_size =  os.path.getsize(file_path) # 文件大小
                         if file_size >= FILE_SIZE_LIMITED:
                             _log.warning(f"[{i}] 文件 '{file_path}' 超出10G限制 | 文件大小：{file_size//GB_SIZE}GB")
+                            g+=1
+                            continue
+                        # 加密后缀在，不上传（认为是已经处理过的文件）
+                        if ENCRYPT_FILE in file_path:
+                            _log.info(f"[{i}] 文件 '{file_path}' 是已加密文件，认为其已上传 | 跳过")
                             g+=1
                             continue
 
@@ -117,29 +128,28 @@ if __name__ == "__main__":
                         # 1.计算文件md5，判断文件是否存在于数据中
                         file_name = file_path.partition("/")[-1] # 文件名
                         file_md5_str = hashlib.md5(f.read()).hexdigest()
+                        if file_md5_str == "":
+                            _log.warning(f"[{i}] 文件 '{file_path}' 哈希值为空 | 跳过")
+                            e+=1
+                            continue
                         # 找到了
                         if FilePath.select().where(FilePath.file_md5 == file_md5_str).first():
                             _log.debug(f"[{i}] 文件 '{file_path}' 已上传 | 文件哈希：{file_md5_str} | 跳过")
                             g+=1
                             continue
-                        # 加密后缀在，不上传（认为是已经处理过的文件）
-                        if ENCRYPT_FILE in file_path:
-                            _log.info(f"[{i}] 文件 '{file_path}' 是已加密文件，认为其已上传 | 文件哈希：{file_md5_str} | 跳过")
-                            g+=1
-                            continue
                         # 2.加密
                         # 如果开启了加密，则将文件加密，并将加密后的文件插入缓存
-                        e_file_path = file_path
+                        ept_file_path = file_path
                         if Config['ENCRYPT_UPLOAD']:
-                            e_file_path = ept.encrypt_files(file_path,f) 
+                            ept_file_path = ept.encrypt_files(file_path,f) 
                         # 3.上传文件
-                        fs_id, md5, server_filename, category, rpath, isdir = bdy.finall_upload_file(e_file_path,path_conf['remote'])
+                        fs_id, md5, server_filename, category, rpath, isdir = bdy.finall_upload_file(ept_file_path,path_conf['remote'])
                         # 4.入库
                         cur_file = FilePath(file_path=file_path,file_name=file_name,file_md5=file_md5_str,remote_path=rpath)
                         cur_file.save()
                         g+=1
                         # 5.删除临时文件
-                        os.remove(e_file_path)
+                        os.remove(ept_file_path)
                         _log.info(f"[{i}] 成功上传 '{file_path}' 文件哈希：{md5} 远程路径：{rpath}")
                     except Exception as result:
                         _log.exception(f"[{i}] 上传失败 '{file_path}'")
@@ -153,8 +163,8 @@ if __name__ == "__main__":
                         else:
                             _log.error(f"[{i}] '{file_path}' 严重错误，文件哈希为空！")
                         # 和当前正在处理的文件不同，说明是加密文件
-                        if e_file_path != file_path:
-                            os.remove(e_file_path)
+                        if ept_file_path != "" and ept_file_path != file_path and os.path.exists(ept_file_path):
+                            os.remove(ept_file_path) # 删除此文件
             except Exception as result:
                 _log.exception(f"err | {path_conf}")
 
