@@ -48,5 +48,5 @@ jobs:
             linux/arm64
           push: true
           tags: |
-            ${{ secrets.DOCKER_USERNAME }}/e2bdy:latest
-            ${{ secrets.DOCKER_USERNAME }}/e2bdy:${{ env.app_version }}
+            musnows/e2bdy:latest
+            musnows/e2bdy:${{ env.app_version }}
