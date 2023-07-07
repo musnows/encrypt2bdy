@@ -14,6 +14,11 @@ def get_timestamp():
     bj_dt = utc_dt.astimezone(timezone(timedelta(hours=8))) # 转换为北京时间
     return bj_dt.timestamp()
 
+def get_time_str_from_stamp(timestamp,format_str='%y-%m-%d %H:%M:%S'):
+    """从时间戳获取字符串时间"""
+    utc_dt =  datetime.fromtimestamp(timestamp,tz=timezone(timedelta(hours=8)))
+    return utc_dt.strftime(format_str)
+
 def get_timestamp_from_str(time_str:str,format_str='%y-%m-%d %H:%M:%S'):
     """从可读时间转为时间戳,格式 23-01-01 00:00:00
     - 如果传入的只有日期，如23-01-01，则会自动获取当日0点的时间戳

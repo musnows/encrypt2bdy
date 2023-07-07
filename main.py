@@ -1,15 +1,19 @@
 import os
 import time
-import traceback
 
 from utils.myLog import _log
-import copy
 
 from utils.bdyUpd import BaiDuWangPan
 from utils.encrypt import EncryptHanlder
-from utils.confLoad import Config,write_config_file
+from utils.confLoad import Config,write_config_file,SYNC_INTERVAL
 from utils import gtime
 
+DelFileCache = []
+"""需要删除的文件路径列表"""
+UpdFileCache = []
+"""上传成功的文件列表"""
+ErrFileCache = []
+"""上传失败的文件列表"""
 
 def is_need_auth():
     """通过config判断是否需要重新授权"""
@@ -86,21 +90,35 @@ if __name__ == "__main__":
     # 1.鉴权
     bdy = auth_bdy()
     # 2.判断是否需要加密
-    ept = EncryptHanlder()
+    ept = EncryptHanlder() if Config['ENCRYPT_UPLOAD'] else None
     # 3.开始扫描文件
-    for path_conf in Config['SYNC_PATH']:
-        file_list = get_files_list(path_conf['local']) # 获取本地文件列表
-        _log.info(f"{path_conf['local']} | {file_list}") # 打印文件列表
+    while True:
+        _log.info(f"上传任务开始：{gtime.get_time_str()}")
         i = 0
-        for file_path in file_list:
-            # 将文件加密
-            e_file_path = ept.encrypt_files(file_path) # can't work 
-            # file_data = open(file_path,'rb')  # work 
-            # print(i,type(file_data))
-            # print(file_data.read(1024*1024*4))
-            fs_id, md5, server_filename, category, path, isdir = bdy.finall_upload_file(e_file_path,path_conf['remote'])
-            print(i,fs_id, md5, server_filename, category, path, isdir)
-            i+=1
-    
-    _log.info(f"[exit] exit at {gtime.get_time_str()}")
+        for path_conf in Config['SYNC_PATH']:
+            file_list = get_files_list(path_conf['local']) # 获取本地文件列表
+            _log.info(f"开始处理路径 '{path_conf['local']}' | 文件数量 {len(file_list)}") # 打印文件列表
+            # 遍历文件列表
+            for file_path in file_list:
+                try:
+                    # 如果开启了加密，则将文件加密，并将加密后的文件插入缓存
+                    e_file_path = file_path
+                    if Config['ENCRYPT_UPLOAD']:
+                        e_file_path = ept.encrypt_files(file_path) # can't work 
+                        DelFileCache.append(e_file_path) # 插入到删除缓存中
+
+                    fs_id, md5, server_filename, category, path, isdir = bdy.finall_upload_file(e_file_path,path_conf['remote'])
+                    _log.info(f"[{i}] 成功上传 '{file_path}' 文件哈希：{md5} 远程路径：{path}")
+                    i+=1
+                    # 上传了一个文件后休息一会
+                    time.sleep(0.05)
+                except Exception as result:
+                    _log.exception(f"[{i}] 上传失败 '{file_path}'")
+                    ErrFileCache.append(file_path)
+                    i+=1
+
+        # 都处理完毕了，等待下次处理
+        next_run_time = gtime.get_time_str_from_stamp(time.time() + SYNC_INTERVAL)
+        _log.info(f"本次上传完毕，下次处理：{gtime.get_time_str_from_stamp(time.time() + SYNC_INTERVAL)} | 开始休眠：{SYNC_INTERVAL}s")
+
     
