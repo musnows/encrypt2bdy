@@ -138,7 +138,7 @@ def upload_task(cron_str:str = SYNC_INTERVAL):
                         with open(file_path,'rb') as f:
                             file_bytes = f.read()
                         # 1.计算文件md5，判断文件是否存在于数据中
-                        file_name = file_path.partition("/")[-1] # 文件名
+                        file_name = os.path.basename(file_path) # 文件名
                         file_md5_str = hashlib.md5(file_bytes).hexdigest()
                         _log.debug(f"{file_path} | {file_md5_str}")
                         # md5不能为空
