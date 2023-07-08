@@ -6,15 +6,15 @@ on:
   pull_request:
     branches: [ "main" ]
 
-#项目任务，任务之间可以并行调度
+# 项目任务，任务之间可以并行调度
 jobs:
   build:
-  #选择云端运行的环境
+  # 选择云端运行的环境
     runs-on: ubuntu-latest
     steps:
-    #uses代表使用一个模块，此处使用的是checkout模块，将github项目文件导入到当前环境中
+    #u ses代表使用一个模块，此处使用的是checkout模块，将github项目文件导入到当前环境中
     - uses: actions/checkout@v3
-    #使用with跟在后面来为前面的模块输入参数
+    # 使用with跟在后面来为前面的模块输入参数
       with:
         submodules: 'true'
     - name: Set up QEMU
@@ -24,21 +24,34 @@ jobs:
     - name: Login to DockerHub
       uses: docker/login-action@v2
       with:
-     # 这里用到了github的secrets功能，避免账户和密码随仓库泄露
+    # 这里用到了github的secrets功能，避免账户和密码随仓库泄露
        username: ${{ secrets.DOCKER_USERNAME }}
        password: ${{ secrets.DOCKER_TOKEN }}
+    # 设置当前的发行版本tag
+    - name: Release version
+      id: release_version
+      run: |
+        app_version=$(cat version.py |sed -ne "s/APP_VERSION\s=\s'v\(.*\)'/\1/gp")
+        echo "app_version=$app_version" >> $GITHUB_ENV
+    # 开始构建镜像
     - name: Build and push
-      # 导入这个模块来完成自动编译和推送
-      uses: docker/build-push-action@v3
+      uses: docker/build-push-action@v2
       with:
-          context: .
-          push: true
-          #在这里通过加入需要编译的平台和前面配好的QEMU，buildx来达到多平台编译
-          platforms: linux/amd64,linux/arm64,linux/arm
-          #指定用户/仓库名
-          tags: musnows/e2bdy:latest
+        context: .
+        file: dockerfile
+        build-args: |
+          GITHUB_TOKEN=${{ secrets.RELEASE_TOKEN }}
+        platforms: |
+          linux/amd64
+          linux/arm64
+          linux/arm
+        push: true
+        # 指定用户/仓库名
+        tags: |
+          ${{ secrets.DOCKER_USERNAME }}/e2bdy:latest
+          ${{ secrets.DOCKER_USERNAME }}/e2bdy:${{ env.app_version }}
+    # 这里是通过md文件自动生成dockerhub描述的模块，也可以不需要
     - name: Docker Hub Description
-      # 这里是通过md文件自动生成dockerhub描述的模块，也可以不需要
       uses: peter-evans/dockerhub-description@v3
       with:
         username: ${{ secrets.DOCKER_USERNAME }}
