@@ -1,6 +1,7 @@
 import os
 import time
 import hashlib
+import requests
 
 from utils.myLog import _log
 
@@ -15,7 +16,8 @@ DelFileCache = []
 GB_SIZE = 1024 * 1024 * 1024 
 FILE_SIZE_LIMITED = 10 * GB_SIZE
 """文件大小限制为10g"""
-
+UPLOAD_RETRY_TIMES = 3
+"""上传文件重试次数"""
 
 def is_need_auth():
     """通过config判断是否需要重新授权百度云"""
@@ -142,9 +144,25 @@ if __name__ == "__main__":
                         ept_file_path = file_path
                         if Config['ENCRYPT_UPLOAD'] == 1:
                             ept_file_path = ept.encrypt_files(file_path,f) 
-                        # 3.上传文件
-                        fs_id, md5, server_filename, category, rpath, isdir = bdy.finall_upload_file(ept_file_path,path_conf['remote'])
-                        # 4.入库
+                        # 3.上传文件，重试4次
+                        result,is_upload_success = None,False
+                        for retry_times in range(UPLOAD_RETRY_TIMES):
+                            try:
+                                fs_id, md5, server_filename, category, rpath, isdir = bdy.finall_upload_file(ept_file_path,path_conf['remote'])
+                                is_upload_success = True
+                                break # 成功了直接break
+                            except requests.exceptions.ConnectionError as result:
+                                # 不是已知网络问题
+                                if 'pan.baidu.com' not in str(result):
+                                    raise result
+                                _log.warning(f"[{i}] 处理文件：{file_path} 遇到网络错误，重试中 | {str(result)}")
+                                continue
+                        # 判断是成功退出，还是超过重试次数退出
+                        if not is_upload_success:
+                            _log.error(f"[{i}] 处理文件：{file_path} 遇到网络错误，超过重试次数！")
+                            raise result
+                            
+                        # 4.上传成功，入库
                         cur_file = FilePath(file_path=file_path,file_name=file_name,file_md5=file_md5_str,remote_path=rpath)
                         cur_file.save()
                         g+=1
