@@ -1,7 +1,10 @@
 # encrypt2bdy
 
-使用python将文件加密后上传到百度云
+使用python将文件加密后上传到百度云。
 
+```
+docker pull musnows/e2bdy
+```
 
 ## 配置
 
@@ -41,6 +44,10 @@
 
 5. 路径配置
 
+将本仓库内 [config-exp.yml](./config/config-exp.yml) 复制并重命名为 `config.yml`，放入一个空文件夹，并将此文件夹映射给docker镜像的 `/app/config` 路径。
+
+配置文件内只需要修改你的备份路径配置，其余token和配置项请以环境变量为准！下面给出备份路径配置示例。
+
 假设我将我的硬盘映射到了docker容器的 `/hdd` 路径，并需要备份该路径中的 `照片` 文件夹。
 
 照片文件夹内有如下文件
@@ -48,22 +55,36 @@
 ```
 test/img1.png
 img2.png
+img3.png
 ```
 
 在yaml内的配置如下
 
 ```yaml
-local: '/hdd/照片'
-remote: '/照片1'
+- local: '/hdd/照片'
+  remote: '照片1'
 ```
 
 最终，程序会将文件上传到百度云盘的如下文件夹
 
 ```
-apps/应用名称/照片1/test/img1.png
-apps/应用名称/照片1/img2.png
+apps/应用名称/照片1/hdd/照片/test/img1.png
+apps/应用名称/照片1/hdd/照片/img2.png
+apps/应用名称/照片1/hdd/照片/img3.png
 ```
 
-其中 apps 文件夹在客户端中显示为 `我的应用数据`，百度网盘使用api上传的文件只能上传到此路径。
+* 其中 apps 文件夹在客户端中显示为 `我的应用数据`，百度网盘使用api上传的文件只能上传到此路径。
+* 应用名称为第一点中提到的 `BDY_APP_NAME` 环境变量。
+* 如果你开启了加密，程序会给文件添加上加密的后缀 `.e2bdy`
 
-应用名称为第一点中提到的 `BDY_APP_NAME` 环境变量。
+请注意，远端文件路径只能指定为文件夹名称，或只能中间带上路径分隔符！
+
+```bash
+/test/test   # 不合法
+./test/test  # 不合法
+test/test/   # 不合法
+./test/test/ # 不合法
+test/test    # ok
+```
+
+请遵循如上配置要求，否则程序会在检测到远端路径配置无效后直接退出。
