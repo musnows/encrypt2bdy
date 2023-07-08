@@ -49,4 +49,3 @@ jobs:
           push: true
           tags: |
             musnows/e2bdy:latest
-            musnows/e2bdy:${{ env.APP_VERSION }}
