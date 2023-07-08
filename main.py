@@ -137,11 +137,13 @@ def upload_task(cron_str:str = SYNC_INTERVAL):
                     # 1.计算文件md5，判断文件是否存在于数据中
                     file_name = file_path.partition("/")[-1] # 文件名
                     file_md5_str = hashlib.md5(file_bytes).hexdigest()
+                    _log.debug(f"{file_path} | {file_md5_str}")
+                    # md5不能为空
                     if file_md5_str == "":
                         _log.warning(f"[{i}] 文件 '{file_path}' 哈希值为空 | 跳过")
                         skip+=1
                         continue
-                    # 数据库中找到了，代表已上传
+                    # 数据库中找到了相同md5，代表已上传
                     if FilePath.select().where(FilePath.file_md5 == file_md5_str).first():
                         _log.debug(f"[{i}] 文件 '{file_path}' 已上传 | 文件哈希：{file_md5_str} | 跳过")
                         skip+=1

@@ -1,5 +1,6 @@
 import os
 import io
+from hashlib import md5
 from cryptography.fernet import Fernet
 from .myLog import _log
 
@@ -33,6 +34,8 @@ class EncryptHanlder:
         if not isinstance(file_data,io.BufferedReader):
             with open(file_path, 'rb') as f:
                 file_bytes = f.read()
+        # 计算文件md5
+        _log.debug(f"{file_path} | {md5(file_bytes).hexdigest()}")
         # 加密
         encrypted_content = self.fernet.encrypt(file_bytes)
         # file_exten = file_path.split(".")[-1]  # 文件后缀
