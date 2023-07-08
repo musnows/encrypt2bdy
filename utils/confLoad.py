@@ -30,7 +30,7 @@ def env_checker(key:str,default,is_critical = False):
     if not temp or temp =="":
         if not is_critical: return default  # 不重要，返回默认值
         else:
-            _log.critical(f"env '{key}' not exists or empty!")
+            _log.critical(f"[config] env '{key}' not exists or empty!")
             os.abort()
     return temp
 
@@ -54,7 +54,7 @@ def config_remote_path_checker(sync_path_list:list):
     for path_conf in sync_path_list:
         remote_path = path_conf['remote']
         if not is_valid_remote_path(remote_path):        
-            _log.warning(f"远端文件路径不能以/开头或结尾！错误路径：'{remote_path}'")
+            _log.warning(f"[config] 远端文件路径不能以/开头或结尾！错误路径：'{remote_path}'")
             os.abort()
 
 def write_config_file(value=Config):
@@ -63,23 +63,25 @@ def write_config_file(value=Config):
 
 if os.path.exists(CONF_FILE_PATH):
     Config = YamlLoader(CONF_FILE_PATH).file_load()
-    _log.info(f"loaded config from '{CONF_FILE_PATH}'")
+    _log.info(f"[config] loaded config from '{CONF_FILE_PATH}'")
 else:
     Config = YamlLoader(CONF_EXP_FILE_PATH).file_load()
     YamlLoader(CONF_FILE_PATH).file_dump(Config)
-    _log.info(f"init config from '{CONF_EXP_FILE_PATH}'")
+    _log.info(f"[config] init config from '{CONF_EXP_FILE_PATH}'")
     
 
 Config['BDY_SECRET_KEY'] = env_checker('BDY_SECRET_KEY',None,True)
 Config['BDY_APP_KEY'] = env_checker('BDY_APP_KEY',None,True)
+Config['TZ'] = env_checker('TZ','Asia/Shanghai')  # 时区
 Config['BDY_APP_NAME'] = env_checker('BDY_APP_NAME',"e2bdys")
-Config['SYNC_INTERVAL'] = int(env_checker('SYNC_INTERVAL',600))
+Config['SYNC_INTERVAL'] = (env_checker('SYNC_INTERVAL',"0 21 * * *"))
 Config['ENCRYPT_UPLOAD'] = int(env_checker('ENCRYPT_UPLOAD',1))
 
+
 SYNC_INTERVAL = Config['SYNC_INTERVAL']
-"""监看间隔时长s"""
+"""监看间隔时长的cron表达式"""
 NEED_ENCRYPT = Config['ENCRYPT_UPLOAD'] 
 """是否需要加密？1为是"""
 
 # 加载完毕
-_log.info(f"loaded config success")
+_log.info("[config] loaded config success")

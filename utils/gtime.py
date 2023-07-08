@@ -1,3 +1,4 @@
+from croniter import croniter
 from datetime import datetime,timezone,timedelta
 
 def get_time_str(format_str='%y-%m-%d %H:%M:%S'):
@@ -31,7 +32,16 @@ def get_timestamp_from_str(time_str:str,format_str='%y-%m-%d %H:%M:%S'):
     return dt.timestamp()
 
 def get_datetime_now():
-    """获取东八区的"""
+    """获取东八区的datetime_now"""
     utc_dt = datetime.now(timezone.utc) # 获取当前时间
     bj_dt = utc_dt.astimezone(timezone(timedelta(hours=8))) # 转换为北京时间
     return bj_dt
+
+
+def get_next_run_time(cron_str:str):
+    """通过cron表达式获取下次运行时间"""
+    utc_dt = datetime.now(timezone.utc) # 获取当前时间
+    bj_dt = utc_dt.astimezone(timezone(timedelta(hours=8)))
+    cron = croniter(cron_str, bj_dt.now())
+    next_run_time = cron.get_next(datetime)
+    return next_run_time
