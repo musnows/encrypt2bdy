@@ -126,6 +126,7 @@ class BaiDuWangPan():
         # 判断文件路径中是否包含emoji，如果有，将emoji字符串删除
         if has_emoji(remote_path):
             remote_path = remove_emoji(remote_path)
+            _log.info(f"[预上传] 远程路径中剔除原有emoji：{remote_path}")
         # 文件大小
         size = os.path.getsize(file_path)
         # 文件块的md5 list
