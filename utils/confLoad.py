@@ -72,11 +72,11 @@ else:
 
 Config['BDY_SECRET_KEY'] = env_checker('BDY_SECRET_KEY',None,True)
 Config['BDY_APP_KEY'] = env_checker('BDY_APP_KEY',None,True)
-Config['TZ'] = env_checker('TZ','Asia/Shanghai')  # 时区
 Config['BDY_APP_NAME'] = env_checker('BDY_APP_NAME',"e2bdys")
 Config['SYNC_INTERVAL'] = (env_checker('SYNC_INTERVAL',"0 21 * * *"))
 Config['ENCRYPT_UPLOAD'] = int(env_checker('ENCRYPT_UPLOAD',1))
-
+# 获取到环境变量后，写回一次
+write_config_file(Config) 
 
 SYNC_INTERVAL = Config['SYNC_INTERVAL']
 """监看间隔时长的cron表达式"""

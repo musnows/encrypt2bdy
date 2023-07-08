@@ -217,7 +217,7 @@ if __name__ == "__main__":
         _log.info("[start] 初次运行完毕，准备依据cron表达式启动task")
         time.sleep(4)  # 4秒后启动任务
         # 2.根具cron表达式来构建task
-        sch = BlockingScheduler(timezone=Config['TZ'])
+        sch = BlockingScheduler(timezone='Asia/Shanghai') # 时区固定为北京时间
         sch.add_job(
             upload_task,trigger=CronTrigger.from_crontab(SYNC_INTERVAL)
         )
