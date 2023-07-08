@@ -1,9 +1,24 @@
 # -*- coding: utf-8 -*-
 import time
-import copy
+import regex
 import json, os, hashlib, requests
 from urllib.parse import urlencode
 from .myLog import _log
+
+
+def has_emoji(text:str):
+    """判断文件路径中是否含有emoji（无法上传到bdy）"""
+    emoji_pattern = regex.compile("[\p{So}\p{Sk}]")
+    return bool(emoji_pattern.search(text))
+
+def remove_emoji(text:str):
+    """从字符串中删除emoji"""
+    ret = ""
+    for c in text:
+        if not has_emoji(c):
+            ret += c
+    return ret
+
 
 class BaiDuWangPan():
     def __init__(self,app_key:str,secret_key:str,app_name:str,access_token="",refresh_token="",outdate_time=0):
@@ -108,6 +123,9 @@ class BaiDuWangPan():
         arr = file_path.split('/')
         for item in arr[1::]:
             remote_path = os.path.join(remote_path, item)
+        # 判断文件路径中是否包含emoji，如果有，将emoji字符串删除
+        if has_emoji(remote_path):
+            remote_path = remove_emoji(remote_path)
         # 文件大小
         size = os.path.getsize(file_path)
         # 文件块的md5 list
