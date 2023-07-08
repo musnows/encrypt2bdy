@@ -1,51 +1,47 @@
-name: e2bdy docker
+name: Docker Image CI
+#触发器设置
 on:
-  workflow_dispatch:
   push:
-    branches:
-      - main
-    paths:
-      - version.py
-      - .github/workflows/build.yml
-      - requirements.txt
-      - dockerfile
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
 
+#项目任务，任务之间可以并行调度
 jobs:
   build:
+  #选择云端运行的环境
     runs-on: ubuntu-latest
-    name: Build Docker Image
     steps:
-      - name: Checkout
-        uses: actions/checkout@main
-
-      - name: Release version
-        id: release_version
-        run: |
-          app_version=$(cat version.py |sed -ne "s/APP_VERSION\s=\s'v\(.*\)'/\1/gp")
-          echo "APP_VERSION=$app_version" >> $GITHUB_ENV
-
-      - name: Set Up QEMU
-        uses: docker/setup-qemu-action@v1
-
-      - name: Set Up Buildx
-        uses: docker/setup-buildx-action@v1
-
-      - name: Login DockerHub
-        uses: docker/login-action@v1
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Build Image
-        uses: docker/build-push-action@v2
-        with:
-          context: docker
-          file: dockerfile
-          build-args: |
-            GITHUB_TOKEN=${{ secrets.RELEASE_TOKEN }}
-          platforms: |
-            linux/amd64
-            linux/arm64
+    #uses代表使用一个模块，此处使用的是checkout模块，将github项目文件导入到当前环境中
+    - uses: actions/checkout@v3
+    #使用with跟在后面来为前面的模块输入参数
+      with:
+        submodules: 'true'
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v2
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+    - name: Login to DockerHub
+      uses: docker/login-action@v2
+      with:
+     # 这里用到了github的secrets功能，避免账户和密码随仓库泄露
+       username: ${{ secrets.DOCKERHUB_USERNAME }}
+       password: ${{ secrets.DOCKERHUB_TOKEN }}
+    - name: Build and push
+      # 导入这个模块来完成自动编译和推送
+      uses: docker/build-push-action@v3
+      with:
+          context: .
           push: true
-          tags: |
-            musnows/e2bdy:latest
+          #在这里通过加入需要编译的平台和前面配好的QEMU，buildx来达到多平台编译
+          platforms: linux/amd64,linux/arm64,linux/arm
+          #指定用户/仓库名
+          tags: musnows/e2bdy:latest
+    - name: Docker Hub Description
+      # 这里是通过md文件自动生成dockerhub描述的模块，也可以不需要
+      uses: peter-evans/dockerhub-description@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_PASSWORD }}
+        repository: musnows/e2bdy
+        readme-filepath: ./README.md
