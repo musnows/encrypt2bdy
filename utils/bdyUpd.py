@@ -220,7 +220,7 @@ class BaiDuWangPan():
         }
         response = requests.post(api, data=data)
         res_data = json.loads(response.content)
-        _log.info(f"文件创建成功！{res_data}")
+        _log.debug(f"文件创建成功！{res_data}")
         errno = res_data.get('errno', 0)
         if errno:
             raise Exception(f"err! {res_data}")
