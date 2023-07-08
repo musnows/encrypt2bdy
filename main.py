@@ -1,5 +1,6 @@
 import os
 import time
+import copy
 import hashlib
 import requests
 
@@ -131,10 +132,11 @@ def upload_task(cron_str:str = SYNC_INTERVAL):
                         skip+=1
                         continue
                     # 打开文件
-                    f = open(file_path,'rb')
+                    with open(file_path,'rb') as f:
+                        file_bytes = f.read()
                     # 1.计算文件md5，判断文件是否存在于数据中
                     file_name = file_path.partition("/")[-1] # 文件名
-                    file_md5_str = hashlib.md5(f.read()).hexdigest()
+                    file_md5_str = hashlib.md5(file_bytes).hexdigest()
                     if file_md5_str == "":
                         _log.warning(f"[{i}] 文件 '{file_path}' 哈希值为空 | 跳过")
                         skip+=1
@@ -148,7 +150,7 @@ def upload_task(cron_str:str = SYNC_INTERVAL):
                     # 如果开启了加密，则将文件加密，并将加密后的文件插入缓存
                     ept_file_path = file_path
                     if NEED_ENCRYPT == 1:
-                        ept_file_path = ept.encrypt_files(file_path,f) 
+                        ept_file_path = ept.encrypt_files(file_path,file_bytes) 
                     # 3.上传文件，重试4次
                     result,is_upload_success = None,False
                     for retry_times in range(UPLOAD_RETRY_TIMES):

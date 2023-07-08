@@ -108,7 +108,7 @@ class BaiDuWangPan():
         return res_token_json
     
 
-    def precreate(self, file_path:str,remote_base:str,file_data = None):
+    def precreate(self, file_path:str,remote_base:str):
         """预上传 https://pan.baidu.com/union/doc/3ksg0s9r7
         
         说明
@@ -132,25 +132,20 @@ class BaiDuWangPan():
         # 文件块的md5 list
         block_list = []
         # 文件数据
-        if not file_data: # 没有传入文件数据
-            f = open(file_path, 'rb')
-        else: # 传入了文件数据  
-            f = file_data
-        # 分片计算文件的md5
-        i = 0
-        while True:
-            data = f.read(1024 * 1024 * 4)
-            if not data:
-                _log.debug(f"{i} break in prev")
-                break
-            block_file_md5 = hashlib.md5(data).hexdigest()
-            block_list.append(block_file_md5)
-            i+=1
-        # 计算文件md5
-        # file_md5_str = hashlib.md5(f.read()).hexdigest()
-        if not file_data: # 没有传入文件数据
-            f.close()  # 关闭文件
-        
+        with open(file_path, 'rb') as f:
+            i = 0
+            # 分片计算文件的md5
+            while True:
+                data = f.read(1024 * 1024 * 4)
+                if not data:
+                    _log.debug(f"{i} break in prev")
+                    break
+                block_file_md5 = hashlib.md5(data).hexdigest()
+                block_list.append(block_file_md5)
+                i+=1
+            # 计算整个文件md5
+            # file_md5_str = hashlib.md5(f.read()).hexdigest()
+        # 调用api
         params = {
             'method': 'precreate',
             'access_token': self.access_token,
@@ -280,31 +275,26 @@ class BaiDuWangPan():
             return res_data
 
 
-    def finall_upload_file(self, file_path:str,remote_base_path:str,file_data=None):
+    def finall_upload_file(self, file_path:str,remote_base_path:str):
         """最终上传函数，只需要传入文件路径就行
         - 上传完毕了之后，需要进行create
         - remoete_base_path：上传到远程的文件夹路径
         """
-        uploadid,return_type ,remote_path, size, block_list = self.precreate(file_path,remote_base_path,file_data)
+        uploadid,return_type ,remote_path, size, block_list = self.precreate(file_path,remote_base_path)
         _log.debug(f"upd:{uploadid} return:{return_type} remote:{remote_path} size:{size} block:{block_list}")
         if return_type == 2:
             return None  # 不需要上传
-        
-        if not file_data: # 没有传入文件数据
-            f = open(file_path, 'rb')
-        else: # 传入了文件数据  
-            f = file_data
-        # 开始分片上传
-        i = 0
-        while True:
-            data = f.read(1024 * 1024 * 4)
-            if not data:
-                _log.debug(f'{i} break in upload')
-                break
-            md5 = self.upload(remote_path, uploadid, i, data)
-            i += 1
-        # 结束，关闭文件
-        f.close()
+        # 打开文件
+        with open(file_path, 'rb') as f:
+            # 开始分片上传
+            i = 0
+            while True:
+                data = f.read(1024 * 1024 * 4)
+                if not data:
+                    _log.debug(f'{i} break in upload')
+                    break
+                md5 = self.upload(remote_path, uploadid, i, data)
+                i += 1
         # 汇总文件
         return self.create(remote_path, size, block_list, uploadid)
 

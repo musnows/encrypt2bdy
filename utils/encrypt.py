@@ -28,14 +28,13 @@ class EncryptHanlder:
 
 
     def encrypt_files(self,file_path:str,file_data=None):
-        """加密文件，返回加密后的文件路径"""
-        file_content = file_data
+        """加密文件，返回加密后的文件路径; file_data 是 f.read之后的值"""
+        file_bytes = file_data
         if not isinstance(file_data,io.BufferedReader):
             with open(file_path, 'rb') as f:
-                file_content = f
-
+                file_bytes = f.read()
         # 加密
-        encrypted_content = self.fernet.encrypt(file_content.read())
+        encrypted_content = self.fernet.encrypt(file_bytes)
         # file_exten = file_path.split(".")[-1]  # 文件后缀
         temp_file_path = file_path + ENCRYPT_FILE
         # 写入临时文件
@@ -48,14 +47,14 @@ class EncryptHanlder:
 
     def decrypt_files(self,file_path:str,file_data=None):
         """解密,直接写入原文件"""
-        file_content = file_data
+        file_bytes = file_data
         if not isinstance(file_data,io.BufferedReader):
             with open(file_path, 'rb') as f:
-                file_content = f
+                file_bytes = f.read()
         # 解密，直接写入源文件
-        file_content = bytearray(self.fernet.decrypt(file_content.read()))
+        file_bytes = bytearray(self.fernet.decrypt(file_bytes))
         file_path = file_path.replace(ENCRYPT_FILE,'') # 删除后缀
         with open(file_path , 'wb') as f:
-            f.write(file_content)
+            f.write(file_bytes)
         
         return file_path
