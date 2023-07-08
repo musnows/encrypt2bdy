@@ -17,6 +17,7 @@ from apscheduler.triggers.cron import CronTrigger
 
 DelFileCache = []
 """需要删除的文件路径列表"""
+MB_SIZE = 1024 * 1024
 GB_SIZE = 1024 * 1024 * 1024 
 FILE_SIZE_LIMITED = 10 * GB_SIZE
 """文件大小限制为10g"""
@@ -103,7 +104,8 @@ def upload_task(cron_str:str = SYNC_INTERVAL):
     ept = EncryptHanlder() if NEED_ENCRYPT else None
     # 3.开始扫描文件
     _log.info(f"上传任务开始：{gtime.get_time_str()}")
-    i,g,e,skip = 0,0,0,0
+    i,g,e,skip,upload_size_sum = 0,0,0,0,0
+    start_time = time.time()
     for path_conf in Config['SYNC_PATH']:
         try:
             # 4.获取单个配置的文件列表
@@ -122,7 +124,7 @@ def upload_task(cron_str:str = SYNC_INTERVAL):
                         continue
                     # 获取文件大小
                     file_size =  os.path.getsize(file_path) # 文件大小
-                    if file_size >= FILE_SIZE_LIMITED:
+                    if file_size >= (FILE_SIZE_LIMITED - 2048): # 10g减去一部分，避免判断失误
                         _log.warning(f"[{i}] 文件 '{file_path}' 超出10G限制 | 文件大小：{file_size//GB_SIZE}GB")
                         skip+=1
                         continue
@@ -175,6 +177,7 @@ def upload_task(cron_str:str = SYNC_INTERVAL):
                     # 4.上传成功，入库
                     cur_file = FilePath(file_path=file_path,file_name=file_name,file_md5=file_md5_str,remote_path=rpath)
                     cur_file.save()
+                    upload_size_sum += file_size  # 计算上传了的文件的总大小
                     g+=1
                     # 5.配置了加密，删除临时加密文件
                     if file_path != ept_file_path and NEED_ENCRYPT == 1:
@@ -209,7 +212,12 @@ def upload_task(cron_str:str = SYNC_INTERVAL):
 
     # 都处理完毕了，等待下次处理
     next_run_time = gtime.get_next_run_time(cron_str)
-    _log.info(f"本次上传完毕，上传：{g} 跳过：{skip} 错误：{e} ，总计：{i}")
+    end_time = time.time()  # 结束时间
+    time_diff =  format(end_time - start_time,'.2f')
+    upload_speed = upload_size_sum/time_diff # 上传的总大小除时间，能得出每秒上传了多少B
+    upload_speed = format(upload_speed / MB_SIZE,'.3f') # 处以mb的，得出mb/s
+    _log.info(f"本次上传完毕，上传：{g}，跳过：{skip}，错误：{e} | 总计：{i}")
+    _log.info(f"本次上传完毕，平均上传速度：{upload_speed}mb/s | 总耗时：{time_diff}s")
     _log.info(f"本次上传完毕，下次处理：{next_run_time}")
 
 
