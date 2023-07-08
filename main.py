@@ -18,7 +18,7 @@ FILE_SIZE_LIMITED = 10 * GB_SIZE
 
 
 def is_need_auth():
-    """通过config判断是否需要重新授权"""
+    """通过config判断是否需要重新授权百度云"""
     if "BDY_USER_TOKEN_OUTDATE" in Config:
         cur_time = time.time()
         if Config["BDY_USER_TOKEN_OUTDATE"] > cur_time:
@@ -123,7 +123,7 @@ if __name__ == "__main__":
                             _log.info(f"[{i}] 文件 '{file_path}' 是已加密文件，认为其已上传 | 跳过")
                             skip+=1
                             continue
-
+                        # 打开文件
                         f = open(file_path,'rb')
                         # 1.计算文件md5，判断文件是否存在于数据中
                         file_name = file_path.partition("/")[-1] # 文件名
@@ -132,7 +132,7 @@ if __name__ == "__main__":
                             _log.warning(f"[{i}] 文件 '{file_path}' 哈希值为空 | 跳过")
                             skip+=1
                             continue
-                        # 找到了
+                        # 数据库中找到了，代表已上传
                         if FilePath.select().where(FilePath.file_md5 == file_md5_str).first():
                             _log.debug(f"[{i}] 文件 '{file_path}' 已上传 | 文件哈希：{file_md5_str} | 跳过")
                             skip+=1
@@ -152,8 +152,15 @@ if __name__ == "__main__":
                         os.remove(ept_file_path)
                         _log.info(f"[{i}] 成功上传 '{file_path}' 文件哈希：{md5} 远程路径：{rpath}")
                     except Exception as result:
-                        _log.exception(f"[{i}] 上传失败 '{file_path}'")
                         e+=1
+                        if "-7" in str(result):
+                            _log.error(f"[{i}] 上传失败 '{file_path}' | 错误码-7，远程路径错误或无权访问，请检查本地路径中是否包含特殊字符")
+                        elif "-10" in str(result):
+                            _log.error(f"[{i}] 上传失败 '{file_path}' | 错误码-10，云盘空间不足！程序退出...")
+                            time.sleep(1)
+                            exit(0)  # 这里其实算正常退出
+                        else:
+                            _log.exception(f"[{i}] 上传失败 '{file_path}'")
                         # 入库
                         # md5字符串为空说明问题挺严重，可能是文件不存在！
                         if file_md5_str != "" and file_name !="":
