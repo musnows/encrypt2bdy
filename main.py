@@ -96,7 +96,7 @@ if __name__ == "__main__":
     # 3.开始扫描文件
     while True:
         _log.info(f"上传任务开始：{gtime.get_time_str()}")
-        i,g,e = 0,0,0
+        i,g,e,skip = 0,0,0,0
         for path_conf in Config['SYNC_PATH']:
             try:
                 file_list = get_files_list(path_conf['local']) # 获取本地文件列表
@@ -116,12 +116,12 @@ if __name__ == "__main__":
                         file_size =  os.path.getsize(file_path) # 文件大小
                         if file_size >= FILE_SIZE_LIMITED:
                             _log.warning(f"[{i}] 文件 '{file_path}' 超出10G限制 | 文件大小：{file_size//GB_SIZE}GB")
-                            g+=1
+                            skip+=1
                             continue
                         # 加密后缀在，不上传（认为是已经处理过的文件）
                         if ENCRYPT_FILE in file_path:
                             _log.info(f"[{i}] 文件 '{file_path}' 是已加密文件，认为其已上传 | 跳过")
-                            g+=1
+                            skip+=1
                             continue
 
                         f = open(file_path,'rb')
@@ -130,17 +130,17 @@ if __name__ == "__main__":
                         file_md5_str = hashlib.md5(f.read()).hexdigest()
                         if file_md5_str == "":
                             _log.warning(f"[{i}] 文件 '{file_path}' 哈希值为空 | 跳过")
-                            e+=1
+                            skip+=1
                             continue
                         # 找到了
                         if FilePath.select().where(FilePath.file_md5 == file_md5_str).first():
                             _log.debug(f"[{i}] 文件 '{file_path}' 已上传 | 文件哈希：{file_md5_str} | 跳过")
-                            g+=1
+                            skip+=1
                             continue
                         # 2.加密
                         # 如果开启了加密，则将文件加密，并将加密后的文件插入缓存
                         ept_file_path = file_path
-                        if Config['ENCRYPT_UPLOAD']:
+                        if Config['ENCRYPT_UPLOAD'] == 1:
                             ept_file_path = ept.encrypt_files(file_path,f) 
                         # 3.上传文件
                         fs_id, md5, server_filename, category, rpath, isdir = bdy.finall_upload_file(ept_file_path,path_conf['remote'])
@@ -170,7 +170,7 @@ if __name__ == "__main__":
 
         # 都处理完毕了，等待下次处理
         next_run_time = gtime.get_time_str_from_stamp(time.time() + SYNC_INTERVAL)
-        _log.info(f"本次上传完毕，成功：{g} 错误：{e}，总计：{i}")
+        _log.info(f"本次上传完毕，上传：{g} 跳过：{skip} 错误：{e} ，总计：{i}")
         _log.info(f"本次上传完毕，下次处理：{next_run_time} | 开始休眠：{SYNC_INTERVAL}s")
         time.sleep(SYNC_INTERVAL)
     
