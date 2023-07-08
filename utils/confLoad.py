@@ -78,6 +78,8 @@ Config['ENCRYPT_UPLOAD'] = int(env_checker('ENCRYPT_UPLOAD',1))
 
 SYNC_INTERVAL = Config['SYNC_INTERVAL']
 """监看间隔时长s"""
+NEED_ENCRYPT = Config['ENCRYPT_UPLOAD'] 
+"""是否需要加密？1为是"""
 
 # 加载完毕
 _log.info(f"loaded config success")

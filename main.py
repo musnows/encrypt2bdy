@@ -7,9 +7,12 @@ from utils.myLog import _log
 
 from utils.bdyUpd import BaiDuWangPan
 from utils.encrypt import EncryptHanlder,ENCRYPT_FILE
-from utils.confLoad import Config,write_config_file,SYNC_INTERVAL
+from utils.confLoad import Config,write_config_file,SYNC_INTERVAL,NEED_ENCRYPT
 from utils import gtime
 from utils.querySql import FilePath,ErrFilePath
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
+
 
 DelFileCache = []
 """需要删除的文件路径列表"""
@@ -94,7 +97,7 @@ if __name__ == "__main__":
     # 1.鉴权
     bdy = auth_bdy()
     # 2.判断是否需要加密
-    ept = EncryptHanlder() if Config['ENCRYPT_UPLOAD'] else None
+    ept = EncryptHanlder() if NEED_ENCRYPT else None
     # 3.开始扫描文件
     while True:
         _log.info(f"上传任务开始：{gtime.get_time_str()}")
@@ -142,7 +145,7 @@ if __name__ == "__main__":
                         # 2.加密
                         # 如果开启了加密，则将文件加密，并将加密后的文件插入缓存
                         ept_file_path = file_path
-                        if Config['ENCRYPT_UPLOAD'] == 1:
+                        if NEED_ENCRYPT == 1:
                             ept_file_path = ept.encrypt_files(file_path,f) 
                         # 3.上传文件，重试4次
                         result,is_upload_success = None,False
