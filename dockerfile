@@ -10,7 +10,7 @@ ENV LANG="C.UTF-8" \
     BDY_APP_KEY="" \
     BDY_APP_NAME="e2bdy" \
     ENCRYPT_UPLOAD=1 \
-    SYNC_INTERVAL=600
+    SYNC_INTERVAL="0 21 * * *"
 
 WORKDIR /app
 
