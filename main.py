@@ -244,7 +244,8 @@ def upload_task(cron_str: str = SYNC_INTERVAL):
                             os.remove(ept_file_path)  # 删除此文件
 
             except Exception as result:
-                _log.exception(f"err | {path_conf}")
+                _log.exception(f"处理同步配置路径 [{path_conf}] 时出现错误")
+                time.sleep(1)
 
         # 都处理完毕了，等待下次处理
         next_run_time = gtime.get_next_run_time(cron_str)
@@ -260,7 +261,7 @@ def upload_task(cron_str: str = SYNC_INTERVAL):
         _log.info(f"本次上传完毕，下次处理：{next_run_time}")
 
     except Exception as result:
-        _log.exception(f"err | {cron_str}")
+        _log.exception(f"upload task 出现错误 | cron: {cron_str}")
 
 
 if __name__ == "__main__":
