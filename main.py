@@ -25,19 +25,27 @@ UPLOAD_RETRY_TIMES = 3
 
 
 def is_need_auth():
-    """通过config判断是否需要重新授权百度云"""
+    """通过config判断是否需要重新授权百度云
+    
+    return：
+    - 0： 一切正常，本地token没有过期
+    - 1： 本地token还剩3天过期，需要refresh
+    - 2： 本地token已经过期，需要重走一遍auth
+    - 3： 本地没有token
+
+    """
     if "BDY_USER_TOKEN_OUTDATE" in Config:
         cur_time = time.time()
         if Config["BDY_USER_TOKEN_OUTDATE"] > cur_time:
             time_diff = Config["BDY_USER_TOKEN_OUTDATE"] - cur_time
             if time_diff <= 3 * 3600 * 24:  # 小于3天，就需要重新获取token
-                return True
+                return 1
             else:
-                return False
+                return 0  # 不小于3天代表有效
         else:  # 当前时间都比过期时间大了，直接退出
-            return True
+            return 2
     else:  # 不存在键值，直接退出
-        return True
+        return 3
 
 
 def get_files_list(dir: str):
@@ -54,10 +62,19 @@ def get_files_list(dir: str):
     return files_list
 
 
+def set_config_token(res: dict):
+    """传入获取token api的返回值，设置到config文件中并保存到本地"""
+    Config['BDY_USER_ACCESS_TOKEN'] = res["access_token"]
+    Config['BDY_USER_REFRESH_TOKEN'] = res["refresh_token"]
+    Config['BDY_USER_TOKEN_OUTDATE'] = time.time() + res["expires_in"]
+    write_config_file(Config)
+
+
 def auth_bdy():
     """先进行百度云验证，需要等待用户输入验证码"""
     try:
-        if not is_need_auth():
+        is_need_auth = is_need_auth()
+        if is_need_auth == 0:
             _log.info("[auth] 用户token尚未过期，跳过验证阶段")
             return BaiDuWangPan(Config['BDY_APP_KEY'],
                                 Config['BDY_SECRET_KEY'],
@@ -65,8 +82,23 @@ def auth_bdy():
                                 Config['BDY_USER_ACCESS_TOKEN'],
                                 Config['BDY_USER_REFRESH_TOKEN'],
                                 Config['BDY_USER_TOKEN_OUTDATE'])
+        # 需要刷新token
+        elif is_need_auth == 1:
+            _log.info("[auth] 用户token即将过期，刷新token")
+            bdy = BaiDuWangPan(Config['BDY_APP_KEY'], Config['BDY_SECRET_KEY'],
+                               Config['BDY_APP_NAME'],
+                               Config['BDY_USER_ACCESS_TOKEN'],
+                               Config['BDY_USER_REFRESH_TOKEN'],
+                               Config['BDY_USER_TOKEN_OUTDATE'])
+            res = bdy.get_refresh_token()  # 执行刷新
+            set_config_token(res)  # 写回配置文件
+            _log.info(f"[auth] 刷新token操作成功，已写回配置文件")
+            return bdy
 
+        elif is_need_auth == 2:
+            _log.info("[auth] token已经过期，需要重新进行授权操作！")
 
+        # 剩余情况2和3都是需要重新获取一遍token的
         bdy = BaiDuWangPan(Config['BDY_APP_KEY'], Config['BDY_SECRET_KEY'],
                            Config['BDY_APP_NAME'])
         res = bdy.get_device_code()
@@ -92,11 +124,7 @@ def auth_bdy():
             os.abort()
 
         # 写回配置文件
-        Config['BDY_USER_ACCESS_TOKEN'] = res["access_token"]
-        Config['BDY_USER_REFRESH_TOKEN'] = res["refresh_token"]
-        Config['BDY_USER_TOKEN_OUTDATE'] = time.time() + res["expires_in"]
-        write_config_file(Config)
-
+        set_config_token(res)
         _log.info(f"[auth] 获取token操作成功，已写回配置文件")
         return bdy  # 返回对象
     except Exception as result:

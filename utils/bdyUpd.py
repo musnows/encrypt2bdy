@@ -48,8 +48,17 @@ class BaiDuWangPan():
             "client_secret": self.secret_key
         }
         response = requests.post(self.get_token_url, data)
-        res_data = json.loads(response.text)
-        return res_data
+        res_token_json = json.loads(response.text)
+
+        _log.debug(f'token: {res_token_json}')
+        # 设置成员变量
+        if "refresh_token" in res_token_json:
+            self.refresh_token = res_token_json["refresh_token"]
+            self.access_token = res_token_json["access_token"]
+            self.token_outdate_time = time.time() + res_token_json["expires_in"]
+            _log.info(f"刷新用户token成功，过期时间：{self.token_outdate_time}")
+
+        return res_token_json
     
 
     def get_device_code(self):
