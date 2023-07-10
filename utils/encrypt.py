@@ -17,11 +17,11 @@ class EncryptHanlder:
             key = Fernet.generate_key()
             with open(key_file_path, 'wb') as file:
                 file.write(key)
-            _log.info(f"init key file in '{key_file_path}'")
+            _log.info(f"[encrypt] init key file in '{key_file_path}'")
         else:
             with open(key_file_path,'rb') as file:
                 key = file.read()
-            _log.info(f"load key file from '{key_file_path}'")
+            _log.info(f"[encrypt] load key file from '{key_file_path}'")
             
         # 成员变量赋值
         self.encrypt_key = key

@@ -58,7 +58,7 @@ def auth_bdy():
     """先进行百度云验证，需要等待用户输入验证码"""
     try:
         if not is_need_auth():
-            _log.info("用户token尚未过期，跳过验证阶段")
+            _log.info("[auth] 用户token尚未过期，跳过验证阶段")
             return BaiDuWangPan(Config['BDY_APP_KEY'],
                                 Config['BDY_SECRET_KEY'],
                                 Config['BDY_APP_NAME'],
@@ -66,12 +66,13 @@ def auth_bdy():
                                 Config['BDY_USER_REFRESH_TOKEN'],
                                 Config['BDY_USER_TOKEN_OUTDATE'])
 
+
         bdy = BaiDuWangPan(Config['BDY_APP_KEY'], Config['BDY_SECRET_KEY'],
                            Config['BDY_APP_NAME'])
         res = bdy.get_device_code()
         # 出现错误
         if "errno" in res or "error_code" in res:
-            _log.critical(f"err get device code: {res}")
+            _log.critical(f"[auth] err get_device_code: {res}")
             _log.critical("请检查KEY环境变量是否设置正确！进程退出中...")
             os.abort()
 
@@ -85,7 +86,7 @@ def auth_bdy():
         res = bdy.get_token_by_device_code(res['device_code'])
         # 出现错误
         if "errno" in res or "error_code" in res:
-            _log.critical(f"err get user token: {res}")
+            _log.critical(f"[auth] err get_user_token: {res}")
             _log.critical("请确认您是否正常进行了应用授权！进程将于60秒后退出...")
             time.sleep(60)
             os.abort()
@@ -96,10 +97,10 @@ def auth_bdy():
         Config['BDY_USER_TOKEN_OUTDATE'] = time.time() + res["expires_in"]
         write_config_file(Config)
 
-        _log.info(f"获取token操作结束，已写回配置文件")
+        _log.info(f"[auth] 获取token操作成功，已写回配置文件")
         return bdy  # 返回对象
     except Exception as result:
-        _log.exception('err in auth init')
+        _log.exception('[auth] err in auth init')
         os.abort()
 
 
