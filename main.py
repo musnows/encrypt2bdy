@@ -73,8 +73,8 @@ def set_config_token(res: dict):
 def auth_bdy():
     """先进行百度云验证，需要等待用户输入验证码"""
     try:
-        is_need_auth = is_need_auth()
-        if is_need_auth == 0:
+        need_auth_ret = is_need_auth()
+        if need_auth_ret == 0:
             _log.info("[auth] 用户token尚未过期，跳过验证阶段")
             return BaiDuWangPan(Config['BDY_APP_KEY'],
                                 Config['BDY_SECRET_KEY'],
@@ -83,7 +83,7 @@ def auth_bdy():
                                 Config['BDY_USER_REFRESH_TOKEN'],
                                 Config['BDY_USER_TOKEN_OUTDATE'])
         # 需要刷新token
-        elif is_need_auth == 1:
+        elif need_auth_ret == 1:
             _log.info("[auth] 用户token即将过期，刷新token")
             bdy = BaiDuWangPan(Config['BDY_APP_KEY'], Config['BDY_SECRET_KEY'],
                                Config['BDY_APP_NAME'],
@@ -95,7 +95,7 @@ def auth_bdy():
             _log.info(f"[auth] 刷新token操作成功，已写回配置文件")
             return bdy
 
-        elif is_need_auth == 2:
+        elif need_auth_ret == 2:
             _log.info("[auth] token已经过期，需要重新进行授权操作！")
 
         # 剩余情况2和3都是需要重新获取一遍token的
@@ -142,7 +142,8 @@ def upload_task(cron_str: str = SYNC_INTERVAL):
         # 3.开始扫描文件
         _log.info(f"上传任务开始：{gtime.get_time_str()}")
         i, g, e, skip, upload_size_sum = 0, 0, 0, 0, 0
-        start_time = time.time()
+        upload_time_used = 0  # 上传期间使用的时间（避免将不上传文件时的操作也计入速率计算）
+        full_start_time = time.time()
         for path_conf in Config['SYNC_PATH']:
             try:
                 # 4.获取单个配置的文件列表
@@ -196,6 +197,8 @@ def upload_task(cron_str: str = SYNC_INTERVAL):
                             )
                             skip += 1
                             continue
+                        # 走到这里，代表文件是需要上传的，记录上传用时
+                        one_start_time = time.time()
                         # 2.加密
                         # 如果开启了加密，则将文件加密，并将加密后的文件插入缓存
                         ept_file_path = file_path
@@ -237,8 +240,11 @@ def upload_task(cron_str: str = SYNC_INTERVAL):
                         if file_path != ept_file_path and NEED_ENCRYPT == 1:
                             os.remove(ept_file_path)
 
+                        one_end_time = time.time()
+                        one_time_diff = one_end_time - one_start_time  # 单次上传的耗时
+                        upload_time_used += one_time_diff  # 添加到总上传耗时中
                         _log.info(
-                            f"[{i}] 成功上传 '{file_path}' 文件哈希：{md5} 远程路径：{rpath}"
+                            f"[{i}] 成功上传 '{file_path}' 文件哈希：{md5} 远程路径：{rpath} | 上传耗时：{format(one_time_diff,'.2f')}s"
                         )
 
                     except Exception as result:
@@ -278,14 +284,15 @@ def upload_task(cron_str: str = SYNC_INTERVAL):
 
         # 都处理完毕了，等待下次处理
         next_run_time = gtime.get_next_run_time(cron_str)
-        end_time = time.time()  # 结束时间
+        full_end_time = time.time()  # 结束时间
+        time_diff = full_end_time - full_start_time  # 时间差值
         # time_diff =  format(end_time - start_time,'.2f') 不能提前format,会变成str
-        time_diff = end_time - start_time
-        upload_speed = upload_size_sum / time_diff  # 上传的总大小除时间，能得出每秒上传了多少B
+
+        upload_speed = upload_size_sum / upload_time_used  # 上传的总大小除时间，能得出每秒上传了多少B
         upload_speed = format(upload_speed / MB_SIZE, '.3f')  # 处以mb的，得出mb/s
         _log.info(f"本次上传完毕，上传：{g}，跳过：{skip}，错误：{e} | 总计：{i}")
         _log.info(
-            f"本次上传完毕，平均上传速度：{upload_speed}mb/s | 总耗时：{format(time_diff,'.2f')}s"
+            f"本次上传完毕，平均上传速度：{upload_speed}mb/s | 上传处理耗时：{format(upload_time_used,'.2f')}s | 总耗时：{format(time_diff,'.2f')}s"
         )
         _log.info(f"本次上传完毕，下次处理：{next_run_time}")
 
