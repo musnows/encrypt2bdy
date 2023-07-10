@@ -1,8 +1,12 @@
-venv/
+# 测试路径
 test-py/
 test-dir/
+# python缓存
 __pycache__/
+venv/
+# 日志和数据库
 *.log
+*.log.*
 *.db
 # 避免将实际的config上传
 config.yml
