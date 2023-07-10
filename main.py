@@ -287,14 +287,19 @@ def upload_task(cron_str: str = SYNC_INTERVAL):
         full_end_time = time.time()  # 结束时间
         time_diff = full_end_time - full_start_time  # 时间差值
         # time_diff =  format(end_time - start_time,'.2f') 不能提前format,会变成str
-
-        upload_speed = upload_size_sum / upload_time_used  # 上传的总大小除时间，能得出每秒上传了多少B
-        upload_speed = format(upload_speed / MB_SIZE, '.3f')  # 处以mb的，得出mb/s
+        if upload_time_used < 0: # 代码能出这个bug我也是个‘天才’了
+            _log.error(f"上传用时为负数？？？？ | {upload_time_used}")
+        elif upload_time_used == 0: # 没有上传过，不显示
+            _log.info(f"本次处理没有进行图片上传操作")
+        else:
+            upload_speed = upload_size_sum / upload_time_used  # 上传的总大小除时间，能得出每秒上传了多少B
+            upload_speed = format(upload_speed / MB_SIZE, '.3f')  # 处以mb的，得出mb/s
+            _log.info(
+                f"本次上传完毕，平均上传速度：{upload_speed}mb/s | 上传处理耗时：{format(upload_time_used,'.2f')}s "
+            )
+        # 日志
         _log.info(f"本次上传完毕，上传：{g}，跳过：{skip}，错误：{e} | 总计：{i}")
-        _log.info(
-            f"本次上传完毕，平均上传速度：{upload_speed}mb/s | 上传处理耗时：{format(upload_time_used,'.2f')}s | 总耗时：{format(time_diff,'.2f')}s"
-        )
-        _log.info(f"本次上传完毕，下次处理：{next_run_time}")
+        _log.info(f"本次上传完毕，总耗时：{format(time_diff,'.2f')}s，下次处理：{next_run_time}")
 
     except Exception as result:
         _log.exception(f"upload task 出现错误 | cron: {cron_str}")
