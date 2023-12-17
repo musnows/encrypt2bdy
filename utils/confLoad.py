@@ -12,30 +12,32 @@ Config = {}
 class YamlLoader:
     def __init__(self, file):
         self.file = file
- 
+
     def file_load(self):
         with open(self.file, 'r', encoding='utf-8') as f:
             return yaml.round_trip_load(f)
- 
+
     def file_dump(self, data):
         with open(self.file, 'w',encoding='utf-8') as f:
             yaml.round_trip_dump(data, f, default_flow_style=False)
 
-def env_checker(key:str,default,is_critical = False):
-    """传入key，检查对应env是否存在，不存则返回default。
-    - 如果is_critical为True，不存在时程序退出！
+
+def env_checker(key: str, default, is_critical=False):
+    """
+    传入key，检查对应env是否存在，不存在则返回default。
+    - 如果is_critical为True，不存在env配置时程序退出！
     """
     temp = os.getenv(key)
     # 环境变量不存在或者为空
-    if not temp or temp =="":
+    if not temp or temp == "":
         if not is_critical: return default  # 不重要，返回默认值
         else:
             _log.critical(f"[config] env '{key}' not exists or empty!")
             os.abort()
     return temp
 
-  
-def is_valid_remote_path(path:str):  
+
+def is_valid_remote_path(path:str):
     """检查远端路径是否符合要求"""
     # 判断路径是否以斜杠开头或者结尾，也不能以.开头
     if path[0] == '/' or path[0] == '.':
@@ -43,17 +45,17 @@ def is_valid_remote_path(path:str):
     if path[-1:] == '/':
         return False
     # 不能有如下字符
-    if './' in path:  
-        return False  
+    if './' in path:
+        return False
     if '//' in path:
         return False
-    return True  
+    return True
 
 def config_remote_path_checker(sync_path_list:list):
     """检查remote path是否正确填写"""
     for path_conf in sync_path_list:
         remote_path = path_conf['remote']
-        if not is_valid_remote_path(remote_path):        
+        if not is_valid_remote_path(remote_path):
             _log.warning(f"[config] 远端文件路径不能以/开头或结尾！错误路径：'{remote_path}'")
             os.abort()
 
@@ -68,19 +70,20 @@ else:
     Config = YamlLoader(CONF_EXP_FILE_PATH).file_load()
     YamlLoader(CONF_FILE_PATH).file_dump(Config)
     _log.info(f"[config] init config from '{CONF_EXP_FILE_PATH}'")
-    
 
 Config['BDY_SECRET_KEY'] = env_checker('BDY_SECRET_KEY',None,True)
 Config['BDY_APP_KEY'] = env_checker('BDY_APP_KEY',None,True)
 Config['BDY_APP_NAME'] = env_checker('BDY_APP_NAME',"e2bdys")
 Config['SYNC_INTERVAL'] = (env_checker('SYNC_INTERVAL',"0 21 * * *"))
-Config['ENCRYPT_UPLOAD'] = int(env_checker('ENCRYPT_UPLOAD',1))
+Config['ENCRYPT_UPLOAD'] = int(env_checker('ENCRYPT_UPLOAD', 0))
+# 如果配置了加密，则一定要配置密钥
+Config['USER_PASSKEY'] = env_checker("USER_PASSKEY",None,(Config['ENCRYPT_UPLOAD'] == 1))
 # 获取到环境变量后，写回一次
-write_config_file(Config) 
+write_config_file(Config)
 
 SYNC_INTERVAL = Config['SYNC_INTERVAL']
 """监看间隔时长的cron表达式"""
-NEED_ENCRYPT = Config['ENCRYPT_UPLOAD'] 
+NEED_ENCRYPT = Config['ENCRYPT_UPLOAD']
 """是否需要加密？1为是"""
 
 # 加载完毕

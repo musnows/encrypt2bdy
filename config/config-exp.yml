@@ -12,15 +12,22 @@ BDY_USER_REFRESH_TOKEN: ""
 BDY_USER_TOKEN_OUTDATE: 0  # 用户token过期时间的时间戳。低于3天就刷新。请不要修改这个值！
 # 请一定不要修改上方值
 
+# 用户密钥配置
+# 这个值非常重要，他是你的加密密钥！如果给了别人，他人就可以解密你的文件！
+# 请不要暴露你的密钥，并设置一个复杂密钥！
+USER_PASSKEY: ""
 
 # 同步目录配置
-ENCRYPT_UPLOAD: 1   # 是否加密？是1 否0，默认开启加密
+# 是否加密？
+# - 1 加密
+# - 0 不加密
+ENCRYPT_UPLOAD: 0
 
-SYNC_INTERVAL: 600  # 监看时间间隔，单位为秒。默认为600s
+SYNC_INTERVAL:  0 21 * * *  # 使用五位cron表达式配置监看周期
 SYNC_PATH:
   - local: '/dir/test/'  # 本地文件路径
     remote: 'test'      # 远程文件路径，不能以./或者/开头，也不能以/结尾
-  
+
   # 依照如上格式，继续添加路径
   # - local: '/dir/test2/'
   #   remote: 'test2'
