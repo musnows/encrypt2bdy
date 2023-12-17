@@ -1,63 +1,57 @@
 import os
-import io
-from hashlib import md5
-from cryptography.fernet import Fernet
+import pyAesCrypt
 from .myLog import _log
 
 DEFAULT_KEY_PATH = './config/encrypt.key'
 """默认密钥文件路径"""
-ENCRYPT_FILE = '.e2bdy'
+ENCRYPT_FILE_EXTENSION = '.e2bdy'
 """加密文件后缀"""
+CHUNK_SIZE = 64 * 1024  # 设置分块大小
+"""加密操作分片大小"""
+
 
 class EncryptHanlder:
+    """文件加密解密处理机制"""
 
-    def __init__(self,key_file_path:str=DEFAULT_KEY_PATH):
-        # 只有key不存在采需要新建
-        if not os.path.exists(key_file_path):
-            key = Fernet.generate_key()
-            with open(key_file_path, 'wb') as file:
-                file.write(key)
-            _log.info(f"[encrypt] init key file in '{key_file_path}'")
-        else:
-            with open(key_file_path,'rb') as file:
-                key = file.read()
-            _log.info(f"[encrypt] load key file from '{key_file_path}'")
-            
+    def __init__(self, passwd: str):
+        """传入用户自定义的密钥"""
         # 成员变量赋值
-        self.encrypt_key = key
-        self.fernet = Fernet(key)
+        self.passwd = passwd
 
+    def encrypt_file(self, input_file: str):
+        """
+        加密文件，采用分片读取
+        :param input_file： 需要加密的源文件
+        :return 加密后的文件路径
+        """
+        encrypt_file_path = input_file + ENCRYPT_FILE_EXTENSION
+        with open(input_file, 'rb') as file_in, open(encrypt_file_path,
+                                                     'wb') as file_out:
+            pyAesCrypt.encryptStream(file_in, file_out, self.passwd,
+                                     CHUNK_SIZE)
+        return encrypt_file_path
 
-    def encrypt_files(self,file_path:str,file_data=None):
-        """加密文件，返回加密后的文件路径; file_data 是 f.read之后的值"""
-        file_bytes = file_data
-        if not isinstance(file_data,io.BufferedReader):
-            with open(file_path, 'rb') as f:
-                file_bytes = f.read()
-        # 计算文件md5
-        _log.debug(f"{file_path} | {md5(file_bytes).hexdigest()}")
-        # 加密
-        encrypted_content = self.fernet.encrypt(file_bytes)
-        # file_exten = file_path.split(".")[-1]  # 文件后缀
-        temp_file_path = file_path + ENCRYPT_FILE
-        # 写入临时文件
-        with open(temp_file_path , 'wb') as f:
-            f.write(encrypted_content)
-        # temp = io.BytesIO(encrypted_content)
-        # temp.write(encrypted_content)
+    def decrypt_file(self, encrypted_file: str):
+        """
+        解密文件，采用分片读取
+        :param encrypted_file：需要解密的文件
+        :return 解密后的文件路径
+        """
+        temp_file_path = encrypted_file.replace(ENCRYPT_FILE_EXTENSION, "")
+        # 如果源文件存在，则添加一个文件后缀来区别名字
+        # 避免覆盖一个可能就是加密前的文件
+        if os.path.exists(temp_file_path):
+            _log.warning(
+                f"add '.decrypt' to file path because '{temp_file_path}' already exists!"
+            )
+            temp_file_path += f"{ENCRYPT_FILE_EXTENSION}.decrypt"
+            # 这不是一个常用后缀，如果这个文件还存在，则删除它
+            if os.path.exists(temp_file_path):
+                os.remove(temp_file_path)
+                _log.warning(f"remove {temp_file_path} before decrypt")
+        # 解密操作
+        with open(encrypted_file,
+                  'rb') as file_in, open(temp_file_path, 'wb+') as file_out:
+            pyAesCrypt.decryptStream(file_in, file_out, self.passwd,
+                                     CHUNK_SIZE)
         return temp_file_path
-
-
-    def decrypt_files(self,file_path:str,file_data=None):
-        """解密,直接写入原文件"""
-        file_bytes = file_data
-        if not isinstance(file_data,io.BufferedReader):
-            with open(file_path, 'rb') as f:
-                file_bytes = f.read()
-        # 解密，直接写入源文件
-        file_bytes = bytearray(self.fernet.decrypt(file_bytes))
-        file_path = file_path.replace(ENCRYPT_FILE,'') # 删除后缀
-        with open(file_path , 'wb') as f:
-            f.write(file_bytes)
-        
-        return file_path

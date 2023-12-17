@@ -59,11 +59,11 @@ class BaiDuWangPan():
             _log.info(f"刷新用户token成功，过期时间：{self.token_outdate_time}")
 
         return res_token_json
-    
+
 
     def get_device_code(self):
         """获取token之前，先调用本函数获取设备码。
-        
+
         响应示例如下
         res_json = {
             "device_code": "设备code，用于调用api",
@@ -115,11 +115,11 @@ class BaiDuWangPan():
             _log.info(f"获取用户token成功，过期时间：{self.token_outdate_time}")
 
         return res_token_json
-    
+
 
     def precreate(self, file_path:str,remote_base:str):
         """预上传 https://pan.baidu.com/union/doc/3ksg0s9r7
-        
+
         说明
         - rtype参数尝试无效！不管如何都会上传文件！230707
         - 请求参数rtype=0时，如果云端存在同名文件，此次调用会失败。
@@ -171,7 +171,7 @@ class BaiDuWangPan():
         response = requests.post(api, data=data)
         res_data = json.loads(response.content)
         _log.debug(f'pc-res {res_data}')
-        
+
         errno = 0
         if 'errno' in res_data:
             errno = res_data['errno']
@@ -256,7 +256,7 @@ class BaiDuWangPan():
             ctime = res_data.get("ctime", '')
             isdir = res_data.get("isdir", '')
             return fs_id, md5, server_filename, category, path, isdir
-    
+
     def create_dir(self,path:str):
         """创建文件夹"""
         params = {
@@ -297,11 +297,7 @@ class BaiDuWangPan():
         with open(file_path, 'rb') as f:
             # 开始分片上传
             i = 0
-            while True:
-                data = f.read(1024 * 1024 * 4)
-                if not data:
-                    _log.debug(f'{i} break in upload')
-                    break
+            while data := f.read(1024 * 1024 * 4):
                 md5 = self.upload(remote_path, uploadid, i, data)
                 i += 1
         # 汇总文件

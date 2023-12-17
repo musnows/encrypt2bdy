@@ -7,7 +7,7 @@ import requests
 from utils.myLog import _log
 
 from utils.bdyUpd import BaiDuWangPan
-from utils.encrypt import EncryptHanlder, ENCRYPT_FILE
+from utils.encrypt import EncryptHanlder, ENCRYPT_FILE_EXTENSION
 from utils.confLoad import Config, write_config_file, SYNC_INTERVAL, NEED_ENCRYPT
 from utils import gtime
 from utils.querySql import FilePath, ErrFilePath
@@ -26,7 +26,7 @@ UPLOAD_RETRY_TIMES = 3
 
 def is_need_auth():
     """通过config判断是否需要重新授权百度云
-    
+
     return：
     - 0： 一切正常，本地token没有过期
     - 1： 本地token还剩3天过期，需要refresh
@@ -52,7 +52,7 @@ def get_files_list(dir: str):
     """
     获取一个目录下所有文件列表，包括子目录
     :param dir: 目录名
-    :return: 文件list
+    :return 文件list
     """
     files_list = []
     for root, dirs, files in os.walk(dir, topdown=False):
@@ -70,8 +70,24 @@ def set_config_token(res: dict):
     write_config_file(Config)
 
 
+def file_md5(file_path: str):
+    """
+    给定一个文件路径，分片加载文件，计算文件的md5
+    :param file_path: 文件路径
+    :return 文件md5字符串
+    """
+    chunk_size = 4096  # 根据需要调整单块的大小
+    with open(file_path, 'rb') as f:
+        file_md5 = hashlib.md5()
+        while chunk := f.read(chunk_size):
+            file_md5.update(chunk)
+    return file_md5.hexdigest()
+
+
 def auth_bdy():
-    """先进行百度云验证，需要等待用户输入验证码"""
+    """
+    先进行百度云验证，需要等待用户输入验证码
+    """
     try:
         need_auth_ret = is_need_auth()
         if need_auth_ret == 0:
@@ -133,12 +149,16 @@ def auth_bdy():
 
 
 def upload_task(cron_str: str = SYNC_INTERVAL):
-    """单次监看任务，传入corn表达式获取下次执行时间。需要保证传入的表达式合法"""
+    """
+    单次监看任务，传入corn表达式获取下次执行时间。
+    需要保证传入的cron表达式合法
+    """
     try:
         # 1.鉴权
         bdy = auth_bdy()
         # 2.判断是否需要加密
-        ept = EncryptHanlder() if NEED_ENCRYPT else None
+        ept = None if not NEED_ENCRYPT else EncryptHanlder(
+            Config["USER_PASSKEY"])
         # 3.开始扫描文件
         _log.info(f"上传任务开始：{gtime.get_time_str()}")
         i, g, e, skip, upload_size_sum = 0, 0, 0, 0, 0
@@ -157,6 +177,7 @@ def upload_task(cron_str: str = SYNC_INTERVAL):
                     i += 1
                     time.sleep(0.05)  # 上传了一个文件后休息一会
                     try:
+                        _log.info(f"[{i}] 开始处理 '{file_path}'")
                         # 判断文件是否存在（可能有权限问题）
                         if not os.path.exists(file_path):
                             _log.warning(f"[{i}] 文件 '{file_path}' 不存在或无权限访问")
@@ -172,18 +193,15 @@ def upload_task(cron_str: str = SYNC_INTERVAL):
                             skip += 1
                             continue
                         # 加密后缀在，不上传（认为是已经处理过的文件）
-                        if ENCRYPT_FILE in file_path:
+                        if ENCRYPT_FILE_EXTENSION in file_path:
                             _log.info(
                                 f"[{i}] 文件 '{file_path}' 是已加密文件，认为其已上传 | 跳过")
                             skip += 1
                             continue
-                        # 打开文件
-                        with open(file_path, 'rb') as f:
-                            file_bytes = f.read()
                         # 1.计算文件md5，判断文件是否存在于数据中
+                        file_md5_str = file_md5(file_path)
                         file_name = os.path.basename(file_path)  # 文件名
-                        file_md5_str = hashlib.md5(file_bytes).hexdigest()
-                        _log.debug(f"{file_path} | {file_md5_str}")
+                        _log.debug(f"{file_path} | md5:{file_md5_str}")
                         # md5不能为空
                         if file_md5_str == "":
                             _log.warning(f"[{i}] 文件 '{file_path}' 哈希值为空 | 跳过")
@@ -203,8 +221,7 @@ def upload_task(cron_str: str = SYNC_INTERVAL):
                         # 如果开启了加密，则将文件加密，并将加密后的文件插入缓存
                         ept_file_path = file_path
                         if NEED_ENCRYPT == 1:
-                            ept_file_path = ept.encrypt_files(
-                                file_path, file_bytes)
+                            ept_file_path = ept.encrypt_file(file_path)
                         # 3.上传文件，重试4次
                         result, is_upload_success = None, False
                         for retry_times in range(UPLOAD_RETRY_TIMES):
@@ -295,7 +312,7 @@ def upload_task(cron_str: str = SYNC_INTERVAL):
             upload_speed = upload_size_sum / upload_time_used  # 上传的总大小除时间，能得出每秒上传了多少B
             upload_speed = format(upload_speed / MB_SIZE, '.3f')  # 处以mb的，得出mb/s
             _log.info(
-                f"本次上传完毕，平均上传速度：{upload_speed}mb/s | 上传处理耗时：{format(upload_time_used,'.2f')}s "
+                f"本次上传完毕，平均上传速度：{upload_speed}MB/s | 上传处理耗时：{format(upload_time_used,'.2f')}s "
             )
         # 日志
         _log.info(f"本次上传完毕，上传：{g}，跳过：{skip}，错误：{e} | 总计：{i}")
@@ -311,7 +328,7 @@ if __name__ == "__main__":
         # 1.启动的时候立即运行一次
         upload_task()
         _log.info("[start] 初次运行完毕，准备依据cron表达式启动task")
-        time.sleep(4)  # 4秒后启动任务
+        time.sleep(2)  # 2秒后启动任务
         # 2.根具cron表达式来构建task
         sch = BlockingScheduler(timezone='Asia/Shanghai')  # 时区固定为北京时间
         sch.add_job(upload_task,
@@ -322,4 +339,5 @@ if __name__ == "__main__":
         sch.start()  # 启动
     except Exception as result:
         _log.exception(
-            f"[start] cron 任务启动失败！请检查 SYNC_INTERVAL 的 cron 表达式是否正确！")
+            f"[start] cron 任务启动失败！请检查 SYNC_INTERVAL 的 cron 表达式是否正确！\nSYNC_INTERVAL: {SYNC_INTERVAL}"
+        )
