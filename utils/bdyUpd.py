@@ -87,13 +87,14 @@ class BaiDuWangPan():
 
 
     def get_token_by_device_code(self,device_code:str):
-        """用device_code获取token
+        """
+        用device_code获取token
         - 有效期到了，就需要refresh（有效期一个月，那就可以设置定时任务，29天刷新一次！）
         - 结果示例如下
         res = {
             "expires_in": 2592000,
-            "refresh_token": "删了",
-            "access_token": "删了",
+            "refresh_token": "新的token",
+            "access_token": "新的token",
             "session_secret": "本来就是空的",
             "session_key": "本来就是空的",
             "scope": "basic netdisk",
@@ -118,13 +119,24 @@ class BaiDuWangPan():
 
 
     def precreate(self, file_path:str,remote_base:str):
-        """预上传 https://pan.baidu.com/union/doc/3ksg0s9r7
+        """
+        预上传 https://pan.baidu.com/union/document/basic#%E9%A2%84%E4%B8%8A%E4%BC%A0
 
-        说明
+        :param file_path: 本地文件路径
+        :param remote_base: 远程基础路径
+        :return (uploadid:上传ID,return_type:接口返回状态码,remote_path:远程路径,size:文件大小,block_list:文件分片md5列表)
+
+        说明：
         - rtype参数尝试无效！不管如何都会上传文件！230707
-        - 请求参数rtype=0时，如果云端存在同名文件，此次调用会失败。
-        - 云端文件重命名策略：假设云端已有文件为test.txt，新的名称为test(1).txt1, 当发现已有目录 /dir 时, 新创建的目录命名为：/dir(1) 。
-        - content-md5和slice-md5都不为空时，接口会判断云端是否已存在相同文件，如果存在，返回的return_type=2，代表直接上传成功，无需请求后面的分片上传和创建文件接口。
+            - 请求参数rtype=0时，如果云端存在同名文件，此次调用会失败。
+            - 请求参数rtype=1时，只要path冲突就会触发重命名
+            - 请求参数rtype=2时，path冲突且block_list不同时才会触发重命名
+            - 请求参数rtype=3时，覆盖原有文件
+            - 云端文件重命名策略：假设云端已有文件为test.txt，新的名称为test(1).txt；当发现已有目录 /dir 时, 新创建的目录命名为：/dir(1) 。
+        - 参数content-md5：文件完整md5
+        - 参数slice-md5：文件校验块的md5（文件前256KB）
+        - 请求参数中content-md5和slice-md5都不为空时，接口会判断云端是否已存在相同文件；
+        - 如果云端文件存在，返回return_type=2，代表直接上传成功，无需请求后面的分片上传和创建文件接口。
         - 如果return_type=1，代表需要上传文件
         """
         remote_path = '/apps/' + self.app_name + '/' + remote_base  # 基础路径
@@ -140,7 +152,9 @@ class BaiDuWangPan():
         size = os.path.getsize(file_path)
         # 文件块的md5 list
         block_list = []
-        # 文件数据
+        # 整个文件的md5
+        file_md5_str = hashlib.md5()
+        # 读取文件数据
         with open(file_path, 'rb') as f:
             i = 0
             # 分片计算文件的md5
@@ -151,9 +165,8 @@ class BaiDuWangPan():
                     break
                 block_file_md5 = hashlib.md5(data).hexdigest()
                 block_list.append(block_file_md5)
+                file_md5_str.update(data) # 计算整个文件md5
                 i+=1
-            # 计算整个文件md5
-            # file_md5_str = hashlib.md5(f.read()).hexdigest()
         # 调用api
         params = {
             'method': 'precreate',
@@ -164,7 +177,8 @@ class BaiDuWangPan():
             'size': size,
             'isdir': 0,
             'autoinit': 1,
-            'block_list': json.dumps(block_list)
+            'block_list': json.dumps(block_list),
+            'content-md5': file_md5_str
         }
         _log.debug(f'ps-req {data}')
         api = self.precreate_api + urlencode(params)
@@ -184,9 +198,10 @@ class BaiDuWangPan():
     def upload(self, remote_path, uploadid, partseq, file_data):
         """
         分片上传功能函数
-        普通用户单个分片大小固定为4MB（文件大小如果小于4MB，无需切片，直接上传即可），单文件总大小上限为4G。
-        普通会员用户单个分片大小上限为16MB，单文件总大小上限为10G。
-        超级会员用户单个分片大小上限为32MB，单文件总大小上限为20G。
+        - 普通用户单个分片大小固定为4MB（文件大小如果小于4MB，无需切片，直接上传即可），单文件总大小上限为4G。
+        - 普通会员用户单个分片大小上限为16MB，单文件总大小上限为10G。
+        - 超级会员用户单个分片大小上限为32MB，单文件总大小上限为20G。
+
         :param remote_path: 上传后使用的文件绝对路径
         :param uploadid: precreate接口下发的uploadid
         :param partseq: 文件分片的位置序号，从0开始，参考precreate接口返回的block_list
@@ -227,7 +242,8 @@ class BaiDuWangPan():
         :param size: 文件大小B
         :param block_list: 文件各分片MD5的json串，MD5对应superfile2返回的md5，且要按照序号顺序排列
         :param uploadid: uploadid
-        :return:
+        :return (fs_id:文件id,md5:文件完整md5,server_filename:文件名,category:文件类型,path:远端文件绝对路径,isdir:0文件1目录)
+        :categroy 分类类型, 1 视频 2 音频 3 图片 4 文档 5 应用 6 其他 7 种子
         """
         params = {
             'method': 'create',
@@ -258,7 +274,7 @@ class BaiDuWangPan():
             return fs_id, md5, server_filename, category, path, isdir
 
     def create_dir(self,path:str):
-        """创建文件夹"""
+        """创建云端文件夹"""
         params = {
             'method': 'create',
             'access_token': self.access_token,
@@ -285,9 +301,11 @@ class BaiDuWangPan():
 
 
     def finall_upload_file(self, file_path:str,remote_base_path:str):
-        """最终上传函数，只需要传入文件路径就行
-        - 上传完毕了之后，需要进行create
-        - remoete_base_path：上传到远程的文件夹路径
+        """
+        最终上传函数，只需要传入文件路径就行
+        :param file_path: 文件本地路径
+        :param remoete_base_path: 上传到远程的文件夹路径
+        :return (fs_id:文件id,md5:文件完整md5,server_filename:文件名,category:文件类型,path:远端文件绝对路径,isdir:0文件1目录)
         """
         uploadid,return_type ,remote_path, size, block_list = self.precreate(file_path,remote_base_path)
         _log.debug(f"upd:{uploadid} return:{return_type} remote:{remote_path} size:{size} block:{block_list}")
@@ -300,22 +318,23 @@ class BaiDuWangPan():
             while data := f.read(1024 * 1024 * 4):
                 md5 = self.upload(remote_path, uploadid, i, data)
                 i += 1
-        # 汇总文件
+        # 汇总文件，上传完毕了之后，需要进行create
         return self.create(remote_path, size, block_list, uploadid)
 
-    def download_file(self, fs_id):
+    def get_file_dlink(self, fs_id_list:list[int]):
         """
-        查询文件并下载
-        先查询文件是否存在，若存在则返回文件下载地址(dlink)
-        下载文件需要在下载地址拼上access_token
-        :param fs_id: 文件id数组，数组中元素是uint64类型，数组大小上限是：100
-        :return: 文件下载地址
+        查询文件并获取dlink
+        - 先查询文件是否存在，若存在则返回文件下载地址(dlink)
+        - 下载文件需要在下载地址拼上access_token
+
+        :param fs_id_list: 文件id数组，数组中元素是uint64类型，数组大小上限是：100
+        :return: 文件下载地址，如果返回为空，代表接口调用错误或文件不存在
         """
         dlink = ''
         params = {
             "method": "filemetas",
             "access_token": self.access_token,
-            "fsids": json.dumps([int(fs_id)]),
+            "fsids": json.dumps(fs_id_list),
             "dlink": 1
         }
         api_url = self.query_file_url + urlencode(params)
@@ -323,14 +342,14 @@ class BaiDuWangPan():
         res_data = json.loads(response.text)
         _log.debug(res_data)
         errmsg = res_data.get("errmsg", None)
-        if errmsg == 'succ':
+        if errmsg == 'succ': # 成功
             res_list = res_data.get("list", [])
             if res_list:
                 dlink = res_list[0].get('dlink', '')
             if dlink:
                 return dlink + '&' + 'access_token={}'.format(self.access_token)
-        else:
-            raise
+        # 出错
+        return ""
 
 
 def test_upd(p:str):
