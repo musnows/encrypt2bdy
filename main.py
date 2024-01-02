@@ -8,7 +8,7 @@ from utils.myLog import _log
 
 from utils.bdyUpd import BaiDuWangPan
 from utils.encrypt import EncryptHanlder, ENCRYPT_FILE_EXTENSION
-from utils.confLoad import Config, write_config_file, SYNC_INTERVAL, NEED_ENCRYPT
+from utils.confLoad import Config, write_config_file, SYNC_INTERVAL, NEED_ENCRYPT,USER_PASSKEY
 from utils import gtime
 from utils.querySql import FilePath, ErrFilePath
 from apscheduler.schedulers.background import BlockingScheduler
@@ -157,8 +157,7 @@ def upload_task(cron_str: str = SYNC_INTERVAL):
         # 1.鉴权
         bdy = auth_bdy()
         # 2.判断是否需要加密
-        ept = None if not NEED_ENCRYPT else EncryptHanlder(
-            Config["USER_PASSKEY"])
+        ept = None if (NEED_ENCRYPT == 0) else EncryptHanlder(USER_PASSKEY)
         # 3.开始扫描文件
         _log.info(f"上传任务开始：{gtime.get_time_str()}")
         i, g, e, skip, upload_size_sum = 0, 0, 0, 0, 0

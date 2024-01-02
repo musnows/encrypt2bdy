@@ -1,5 +1,5 @@
-import os,re
-from ruamel import yaml
+import os
+import ruamel.yaml
 from .myLog import _log
 
 CONF_FILE_PATH = './config/config.yml'
@@ -9,17 +9,21 @@ CONF_EXP_FILE_PATH = './config/config-exp.yml'
 Config = {}
 """配置文件"""
 
+
 class YamlLoader:
-    def __init__(self, file):
-        self.file = file
+
+    def __init__(self, file_path: str):
+        self.file = file_path
 
     def file_load(self):
+        """加载yml文件"""
         with open(self.file, 'r', encoding='utf-8') as f:
-            return yaml.round_trip_load(f)
+            return ruamel.yaml.round_trip_load(f)
 
     def file_dump(self, data):
-        with open(self.file, 'w',encoding='utf-8') as f:
-            yaml.round_trip_dump(data, f, default_flow_style=False)
+        """写入yml文件到路径"""
+        with open(self.file, 'w', encoding='utf-8') as f:
+            ruamel.yaml.YAML().dump(data, f)  # 导出的时候保留注释
 
 
 def env_checker(key: str, default, is_critical=False):
@@ -37,7 +41,7 @@ def env_checker(key: str, default, is_critical=False):
     return temp
 
 
-def is_valid_remote_path(path:str):
+def is_valid_remote_path(path: str):
     """检查远端路径是否符合要求"""
     # 判断路径是否以斜杠开头或者结尾，也不能以.开头
     if path[0] == '/' or path[0] == '.':
@@ -51,7 +55,8 @@ def is_valid_remote_path(path:str):
         return False
     return True
 
-def config_remote_path_checker(sync_path_list:list):
+
+def config_remote_path_checker(sync_path_list: list):
     """检查remote path是否正确填写"""
     for path_conf in sync_path_list:
         remote_path = path_conf['remote']
@@ -59,32 +64,42 @@ def config_remote_path_checker(sync_path_list:list):
             _log.warning(f"[config] 远端文件路径不能以/开头或结尾！错误路径：'{remote_path}'")
             os.abort()
 
+
 def write_config_file(value=Config):
     """写入配置文件"""
     YamlLoader(CONF_FILE_PATH).file_dump(value)
+
+
+##########################读取并检测配置是否合法#################################
 
 if os.path.exists(CONF_FILE_PATH):
     Config = YamlLoader(CONF_FILE_PATH).file_load()
     _log.info(f"[config] loaded config from '{CONF_FILE_PATH}'")
 else:
     Config = YamlLoader(CONF_EXP_FILE_PATH).file_load()
-    YamlLoader(CONF_FILE_PATH).file_dump(Config)
+    YamlLoader(CONF_FILE_PATH).file_dump(Config)  # 加载默认的配置文件
     _log.info(f"[config] init config from '{CONF_EXP_FILE_PATH}'")
 
-Config['BDY_SECRET_KEY'] = env_checker('BDY_SECRET_KEY',None,True)
-Config['BDY_APP_KEY'] = env_checker('BDY_APP_KEY',None,True)
-Config['BDY_APP_NAME'] = env_checker('BDY_APP_NAME',"e2bdys")
-Config['SYNC_INTERVAL'] = (env_checker('SYNC_INTERVAL',"0 21 * * *"))
+# 检测环境变量是否存在
+Config['BDY_SECRET_KEY'] = env_checker('BDY_SECRET_KEY', None, True)
+Config['BDY_APP_KEY'] = env_checker('BDY_APP_KEY', None, True)
+Config['BDY_APP_NAME'] = env_checker('BDY_APP_NAME', "e2bdys")
+Config['SYNC_INTERVAL'] = env_checker('SYNC_INTERVAL', "0 21 * * *")
 Config['ENCRYPT_UPLOAD'] = int(env_checker('ENCRYPT_UPLOAD', 0))
-# 如果配置了加密，则一定要配置密钥
-Config['USER_PASSKEY'] = env_checker("USER_PASSKEY",None,(Config['ENCRYPT_UPLOAD'] == 1))
-# 获取到环境变量后，写回一次
+# 获取到环境变量后，写回一次配置文件
 write_config_file(Config)
 
 SYNC_INTERVAL = Config['SYNC_INTERVAL']
 """监看间隔时长的cron表达式"""
+
+# 如果配置了加密，则一定要配置密钥
 NEED_ENCRYPT = Config['ENCRYPT_UPLOAD']
 """是否需要加密？1为是"""
+USER_PASSKEY = env_checker("USER_PASSKEY", "test", (NEED_ENCRYPT == 1))
+"""用户密钥配置"""
+# 检查用户密钥是否真的配置好了
+if NEED_ENCRYPT == 1:
+    assert (USER_PASSKEY != "")
 
 # 加载完毕
 _log.info("[config] loaded config success")
