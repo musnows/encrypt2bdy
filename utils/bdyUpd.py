@@ -6,12 +6,13 @@ from urllib.parse import urlencode
 from .myLog import _log
 
 
-def has_emoji(text:str):
+def has_emoji(text: str):
     """判断文件路径中是否含有emoji（无法上传到bdy）"""
     emoji_pattern = regex.compile("[\p{So}\p{Sk}]")
     return bool(emoji_pattern.search(text))
 
-def remove_emoji(text:str):
+
+def remove_emoji(text: str):
     """从字符串中删除emoji"""
     ret = ""
     for c in text:
@@ -21,7 +22,14 @@ def remove_emoji(text:str):
 
 
 class BaiDuWangPan():
-    def __init__(self,app_key:str,secret_key:str,app_name:str,access_token="",refresh_token="",outdate_time=0):
+
+    def __init__(self,
+                 app_key: str,
+                 secret_key: str,
+                 app_name: str,
+                 access_token="",
+                 refresh_token="",
+                 outdate_time=0):
         """传入token，初始化成员"""
         self.access_token = access_token
         self.refresh_token = refresh_token
@@ -55,11 +63,11 @@ class BaiDuWangPan():
         if "refresh_token" in res_token_json:
             self.refresh_token = res_token_json["refresh_token"]
             self.access_token = res_token_json["access_token"]
-            self.token_outdate_time = time.time() + res_token_json["expires_in"]
+            self.token_outdate_time = time.time(
+            ) + res_token_json["expires_in"]
             _log.info(f"刷新用户token成功，过期时间：{self.token_outdate_time}")
 
         return res_token_json
-
 
     def get_device_code(self):
         """获取token之前，先调用本函数获取设备码。
@@ -85,8 +93,7 @@ class BaiDuWangPan():
         _log.debug(f'device: {res_json}')
         return res_json
 
-
-    def get_token_by_device_code(self,device_code:str):
+    def get_token_by_device_code(self, device_code: str):
         """
         用device_code获取token
         - 有效期到了，就需要refresh（有效期一个月，那就可以设置定时任务，29天刷新一次！）
@@ -112,13 +119,13 @@ class BaiDuWangPan():
         if "refresh_token" in res_token_json:
             self.refresh_token = res_token_json["refresh_token"]
             self.access_token = res_token_json["access_token"]
-            self.token_outdate_time = time.time() + res_token_json["expires_in"]
+            self.token_outdate_time = time.time(
+            ) + res_token_json["expires_in"]
             _log.info(f"获取用户token成功，过期时间：{self.token_outdate_time}")
 
         return res_token_json
 
-
-    def precreate(self, file_path:str,remote_base:str):
+    def precreate(self, file_path: str, remote_base: str):
         """
         预上传 https://pan.baidu.com/union/document/basic#%E9%A2%84%E4%B8%8A%E4%BC%A0
 
@@ -165,8 +172,8 @@ class BaiDuWangPan():
                     break
                 block_file_md5 = hashlib.md5(data).hexdigest()
                 block_list.append(block_file_md5)
-                file_md5_str.update(data) # 计算整个文件md5
-                i+=1
+                file_md5_str.update(data)  # 计算整个文件md5
+                i += 1
         # 调用api
         params = {
             'method': 'precreate',
@@ -174,6 +181,7 @@ class BaiDuWangPan():
         }
         data = {
             'path': remote_path,
+            'rtype': 2,
             'size': size,
             'isdir': 0,
             'autoinit': 1,
@@ -193,7 +201,8 @@ class BaiDuWangPan():
             errno = res_data['error_code']
         if errno:
             raise Exception(f"err! {res_data}")
-        return res_data.get('uploadid'),res_data.get('return_type'), remote_path, size, block_list
+        return res_data.get('uploadid'), res_data.get(
+            'return_type'), remote_path, size, block_list
 
     def upload(self, remote_path, uploadid, partseq, file_data):
         """
@@ -209,9 +218,7 @@ class BaiDuWangPan():
         :return: 文件的md5字符串
         """
         data = {}
-        files = [
-            ('file', file_data)
-        ]
+        files = [('file', file_data)]
         params = {
             'method': 'upload',
             'access_token': self.access_token,
@@ -273,7 +280,7 @@ class BaiDuWangPan():
             isdir = res_data.get("isdir", '')
             return fs_id, md5, server_filename, category, path, isdir
 
-    def create_dir(self,path:str):
+    def create_dir(self, path: str):
         """创建云端文件夹"""
         params = {
             'method': 'create',
@@ -290,7 +297,7 @@ class BaiDuWangPan():
             'path': remote_path,
             'isdir': 1,
         }
-        response = requests.request("POST", api, data = data)
+        response = requests.request("POST", api, data=data)
         res_data = json.loads(response.content)
         errno = res_data.get('errno', 0)
         _log.debug(f'dir {res_data}')
@@ -299,16 +306,18 @@ class BaiDuWangPan():
         else:
             return res_data
 
-
-    def finall_upload_file(self, file_path:str,remote_base_path:str):
+    def finall_upload_file(self, file_path: str, remote_base_path: str):
         """
         最终上传函数，只需要传入文件路径就行
         :param file_path: 文件本地路径
         :param remoete_base_path: 上传到远程的文件夹路径
         :return (fs_id:文件id,md5:文件完整md5,server_filename:文件名,category:文件类型,path:远端文件绝对路径,isdir:0文件1目录)
         """
-        uploadid,return_type ,remote_path, size, block_list = self.precreate(file_path,remote_base_path)
-        _log.debug(f"upd:{uploadid} return:{return_type} remote:{remote_path} size:{size} block:{block_list}")
+        uploadid, return_type, remote_path, size, block_list = self.precreate(
+            file_path, remote_base_path)
+        _log.debug(
+            f"upd:{uploadid} return:{return_type} remote:{remote_path} size:{size} block:{block_list}"
+        )
         if return_type == 2:
             return None  # 不需要上传
         # 打开文件
@@ -321,7 +330,7 @@ class BaiDuWangPan():
         # 汇总文件，上传完毕了之后，需要进行create
         return self.create(remote_path, size, block_list, uploadid)
 
-    def get_file_dlink(self, fs_id_list:list[int]):
+    def get_file_dlink(self, fs_id_list: list[int]):
         """
         查询文件并获取dlink
         - 先查询文件是否存在，若存在则返回文件下载地址(dlink)
@@ -342,19 +351,21 @@ class BaiDuWangPan():
         res_data = json.loads(response.text)
         _log.debug(res_data)
         errmsg = res_data.get("errmsg", None)
-        if errmsg == 'succ': # 成功
+        if errmsg == 'succ':  # 成功
             res_list = res_data.get("list", [])
             if res_list:
                 dlink = res_list[0].get('dlink', '')
             if dlink:
-                return dlink + '&' + 'access_token={}'.format(self.access_token)
+                return dlink + '&' + 'access_token={}'.format(
+                    self.access_token)
         # 出错
         return ""
 
 
-def test_upd(p:str):
+def test_upd(p: str):
     t = BaiDuWangPan()
     t.create_dir(p)
+
 
 # 测试
 if __name__ == "__main__":
